@@ -2,13 +2,13 @@
 
 A small Chrome/Edge extension for reviewing Google Photos albums at full size. Keep the photos you like, return to the album grid, and select them together. You choose **Add to album** in Google Photos yourself.
 
-**Preview:** installation, the toolbar, and keeping picks have been tested by a user in Google Photos. Bulk selection failed to recognize the controls in that user’s album layout. Version 0.1.2 handles hover-hidden controls and base-relative photo links, and adds a read-only layout report to diagnose any remaining mismatch. These cases have fixture tests; the updated integration still needs checking on the real page. The extension stops when it cannot identify or confirm a supported selection control.
+**Preview:** users are testing the extension in Google Photos; automated checks use simulated pages. The DOM adapter handles hover-hidden controls and base-relative links, and offers a read-only layout report for unfamiliar layouts. Version 0.1.3 uses Chrome’s shortcut system for keeping photos, leaving Google Photos’ K navigation intact. Confirm the current layout and shortcut binding in your browser. The extension stops when it cannot identify or confirm a supported selection control.
 
 ## Install without the Chrome Web Store
 
 No Google Cloud project, API key, sign-in flow, or build step is needed.
 
-1. Download [photo-shortlist-0.1.2.zip](downloads/photo-shortlist-0.1.2.zip?raw=true) and unzip it into a permanent local folder. You can also use the repository’s `extension/` folder directly.
+1. Download [photo-shortlist-0.1.3.zip](downloads/photo-shortlist-0.1.3.zip?raw=true) and unzip it into a permanent local folder. You can also use the repository’s `extension/` folder directly.
 2. Open `chrome://extensions` (or `edge://extensions`) and enable **Developer mode**.
 3. Click **Load unpacked** and select the folder containing `manifest.json`.
 4. Refresh any already-open Google Photos tabs. Open one of your albums.
@@ -26,7 +26,7 @@ The report contains counts, recognized HTML roles, allowlisted attribute names, 
 ## Use it
 
 1. Open an album or shared album, then open a photo full-size.
-2. Click **Keep photo** or press **K** to toggle that photo in your shortlist. Use Google Photos’ arrow navigation to continue reviewing. Merely viewing a photo never keeps it.
+2. Click **Keep photo** or press **Alt+Shift+S** (Option+Shift+S on Mac) to toggle that photo in your shortlist. Use Google Photos’ arrow navigation to continue reviewing; K retains its native backward navigation. Merely viewing a photo never keeps it.
 3. Return to the album grid. Clear any existing Google Photos selection, then click **Select kept photos**.
 4. Wait while the extension scrolls through the album and confirms each selection. Use **Stop selecting** to cancel.
 5. Check Google Photos’ selection count, click its **Add to album** control, and choose the destination.
@@ -35,7 +35,9 @@ The original photos remain in their source album. The extension never clicks Add
 
 **Review shortlist** lets you reopen or remove kept photos. **Clear** affects only the saved shortlist and provides **Undo clear**; it does not clear Google Photos’ native selection. After adding to your destination, clear the shortlist yourself if you are finished with it.
 
-The **K** shortcut is active only in the full-size album viewer while the panel is expanded. It is ignored while typing, composing text, using modifiers, or focusing an interactive control. You can disable it under **How it works**. Collapse the panel to keep it out of the way; reopen it using its compact button or the extension’s toolbar popup.
+The keep shortcut is active only in the full-size album viewer while the panel is expanded. It is ignored while editing a caption, comment, or other text field, and works when a native navigation button retains focus. You can disable the keep action under **How it works**. Collapse the panel to keep it out of the way; reopen it using its compact button or the extension’s toolbar popup.
+
+**Change or remove the shortcut:** open `chrome://extensions/shortcuts` (or `edge://extensions/shortcuts`), find **Photo Shortlist**, and edit **Keep or unkeep the current photo**. Chrome handles the binding before webpage keyboard handlers. The panel and popup show the actual binding; return to the Photos tab or refresh it after a change. If no key is assigned, the UI asks you to assign one and the Keep photo button still works. To release the key combination completely, remove it in Chrome’s shortcut settings.
 
 ## Supported scope and limitations
 
@@ -66,6 +68,6 @@ npm run package
 
 Browser tests use system Chromium when available at `/usr/bin/chromium`; otherwise install Playwright Chromium with `npx playwright install chromium`. Set `SHORTLIST_CHROMIUM_PATH` if a different browser executable is needed. `npm run package` also needs Python 3 and updates the zip in `downloads/`, containing **only** the extension files, with `manifest.json` at its root.
 
-The cloud browser blocks unpacked extension installation through a managed policy. The browser suite therefore runs the **actual packaged content scripts** on intercepted, simulated Photos pages, with a Chrome API bridge and the **actual storage worker code** in a VM. The fixtures exercise full-size navigation, shared-album deep links with synthetic access keys, persistence, multiple tabs/accounts/albums, virtualized grids, hover-hidden controls, relative links, diagnostic privacy, cancellation, unsupported controls, partial selection, and light/dark accessible UI. They do **not** validate Chrome’s extension loader, content-script isolated worlds, or the live Google Photos DOM. No tests access a real photo account.
+The cloud browser blocks unpacked extension installation through a managed policy. The browser suite therefore runs the **actual packaged content scripts** on intercepted, simulated Photos pages, with a Chrome API bridge and the **actual storage worker code** in a VM. The fixtures exercise full-size navigation, native K navigation, simulated browser-command delivery, remapped/unassigned shortcuts, shared-album deep links with synthetic access keys, persistence, multiple tabs/accounts/albums, virtualized grids, hover-hidden controls, relative links, diagnostic privacy, cancellation, unsupported controls, partial selection, and light/dark accessible UI. They do **not** validate Chrome’s extension loader, actual browser shortcut registration, content-script isolated worlds, or the live Google Photos DOM. No tests access a real photo account.
 
 See [UI decisions](docs/UI.md), the [manual integration checklist](docs/MANUAL_TEST.md), and the [original project brief](docs/PROJECT_BRIEF.md).

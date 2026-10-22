@@ -7,6 +7,7 @@
   const state = {
     route: null, album: null, settings: { shortcutEnabled: true, collapsed: false },
     saving: false, running: false, controller: null, undo: null, feedback: "", feedbackKind: "info", revision: 0,
+    shortcut: null,
   };
   const host = document.createElement("div");
   host.id = "photo-shortlist-root";
@@ -25,14 +26,14 @@
         <div class="album-line"><span id="album-title">This album</span><span id="mode" class="tag">Album</span></div>
         <div class="count-line"><strong id="count">0</strong><span id="count-label">photos kept</span><span class="saved"><span aria-hidden="true">●</span> Saved locally</span></div>
         <p id="hint">Open a photo to start your shortlist.</p>
-        <button id="keep" class="primary" type="button" aria-pressed="false"><span id="keep-icon" aria-hidden="true">＋</span><span>Keep photo</span><kbd id="key-hint">K</kbd></button>
+        <button id="keep" class="primary" type="button" aria-pressed="false"><span id="keep-icon" aria-hidden="true">＋</span><span>Keep photo</span><kbd id="key-hint" hidden></kbd></button>
         <button id="apply" class="primary" type="button">Select kept photos <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>
         <div id="progress-area" hidden><label id="progress-label" for="progress">Selecting photos…</label><progress id="progress" max="1" value="0"></progress><button id="cancel" class="secondary" type="button">Stop selecting</button></div>
         <div class="actions"><button id="review-toggle" class="text-button" type="button" aria-expanded="false" aria-controls="review">Review shortlist</button><button id="clear" class="text-button" type="button">Clear</button></div>
         <div id="review" hidden><ol id="kept-list" aria-label="Kept photos"></ol><p id="review-note" class="small" hidden></p></div>
         <div id="feedback-wrap" hidden><p id="feedback" role="status" aria-live="polite" aria-atomic="true"></p><button id="undo" class="text-button" type="button" hidden>Undo clear</button><button id="diagnose" class="text-button" type="button" hidden>Check page layout</button></div>
         <section id="diagnostic-panel" aria-label="Layout diagnostics" hidden><label for="diagnostic-report">Layout report</label><p class="small">Layout details only: no photo links, IDs, captions, or images. Nothing is sent automatically.</p><textarea id="diagnostic-report" aria-label="Layout report" rows="7" readonly spellcheck="false"></textarea><button id="copy-diagnostic" class="secondary" type="button">Copy layout report</button><p id="diagnostic-status" class="small" role="status" aria-live="polite"></p></section>
-        <details id="help"><summary>How it works</summary><ol><li>Open a photo in this album.</li><li>Use <strong>Keep photo</strong> as you browse.</li><li>Return to the grid and select kept photos.</li><li>Use Google Photos’ <strong>Add to album</strong>.</li></ol><label class="setting"><input id="shortcut" type="checkbox" checked> Enable the K shortcut</label><p class="small">Your shortlist stays in this browser. Nothing is added to an album automatically. English selection labels and semantic checkboxes are supported.</p></details>
+        <details id="help"><summary>How it works</summary><ol><li>Open a photo in this album.</li><li>Use <strong>Keep photo</strong> as you browse.</li><li>Return to the grid and select kept photos.</li><li>Use Google Photos’ <strong>Add to album</strong>.</li></ol><label class="setting"><input id="shortcut" type="checkbox" checked> Enable keyboard shortcut</label><p class="small">Default: Alt+Shift+S. Change or remove the binding at chrome://extensions/shortcuts. Google Photos keeps its own navigation keys.</p><p class="small">Your shortlist stays in this browser. Nothing is added to an album automatically. English selection labels and semantic checkboxes are supported.</p></details>
       </div>
       <button id="expand" type="button" hidden><span class="brand-icon" aria-hidden="true">▧</span><span id="compact-count">0 kept</span><span aria-hidden="true">⌃</span></button>
     </section>`;
@@ -53,6 +54,24 @@
     render();
   }
 
+  function ariaShortcut(shortcut) {
+    const modifiers = { "⌥": "Alt+", "⌘": "Meta+", "⇧": "Shift+", "⌃": "Control+" };
+    const normalized = (shortcut || "").replace(/[⌥⌘⇧⌃]/g, (symbol) => modifiers[symbol]).replace(/\++/g, "+")
+      .replace(/\bCtrl\b/g, "Control").replace(/\bCommand\b/g, "Meta").replace(/\bOption\b/g, "Alt");
+    return /^(?:(?:Alt|Shift|Control|Meta)\+)+[A-Za-z0-9]$/.test(normalized) ? normalized : "";
+  }
+
+  async function loadShortcut() {
+    state.shortcut = (await request("SHORTCUT_GET")).shortcut;
+    render();
+  }
+
+  function editingText() {
+    let active = document.activeElement;
+    while (active?.shadowRoot?.activeElement) active = active.shadowRoot.activeElement;
+    return active instanceof HTMLElement && (active.isContentEditable || active.matches('input, textarea, select, [role="textbox"], [role="combobox"]') || Boolean(active.closest('[role="textbox"], [role="combobox"]')));
+  }
+
   function render() {
     host.hidden = !state.route?.albumId;
     host.style.display = host.hidden ? "none" : "block";
@@ -71,7 +90,7 @@
     $("count").textContent = count();
     $("count-label").textContent = count() === 1 ? "photo kept" : "photos kept";
     $("hint").textContent = isViewer
-      ? (state.settings.shortcutEnabled ? "K to keep · Arrow keys to browse" : "Keep the photos you want as you browse.")
+      ? (state.settings.shortcutEnabled && state.shortcut ? `${state.shortcut} to keep · Arrow keys to browse` : state.settings.shortcutEnabled && state.shortcut === "" ? "Assign a shortcut at chrome://extensions/shortcuts." : "Keep the photos you want as you browse.")
       : count() ? "Ready? Select your shortlist, then add it to an album." : "Open a photo to start your shortlist.";
     $("keep").hidden = !isViewer || state.running;
     $("apply").hidden = isViewer || state.running;
@@ -82,9 +101,11 @@
     const kept = state.album?.photos.some((photo) => photo.id === state.route.photoId) || false;
     $("keep").setAttribute("aria-pressed", String(kept));
     $("keep-icon").textContent = kept ? "✓" : "＋";
-    if (state.settings.shortcutEnabled) $("keep").setAttribute("aria-keyshortcuts", "K");
+    const accessibleShortcut = state.settings.shortcutEnabled ? ariaShortcut(state.shortcut) : "";
+    if (accessibleShortcut) $("keep").setAttribute("aria-keyshortcuts", accessibleShortcut);
     else $("keep").removeAttribute("aria-keyshortcuts");
-    $("key-hint").hidden = !state.settings.shortcutEnabled;
+    $("key-hint").textContent = state.shortcut || "";
+    $("key-hint").hidden = !state.settings.shortcutEnabled || !state.shortcut;
     $("progress-area").hidden = !state.running;
     $("clear").disabled = busy || !count();
     $("review-toggle").disabled = busy || !count();
@@ -265,15 +286,6 @@
     }
   });
 
-  document.addEventListener("keydown", (event) => {
-    if (!state.settings.shortcutEnabled || state.settings.collapsed || state.route?.kind !== "viewer" || event.key.toLowerCase() !== "k" || event.ctrlKey || event.metaKey || event.altKey || event.repeat || event.isComposing) return;
-    const path = event.composedPath();
-    if (path.includes(host) || path.some((element) => element instanceof HTMLElement && (element.isContentEditable || element.matches('input, textarea, select, button, a, [role="textbox"], [role="combobox"]')))) return;
-    event.preventDefault();
-    event.stopImmediatePropagation();
-    toggleKeep();
-  }, true);
-
   let lastUrl = "";
   async function syncRoute() {
     if (lastUrl === location.href) return;
@@ -303,12 +315,24 @@
     if (state.route?.albumId && changes[Core.albumKey(state.route)]) loadAlbum().catch((error) => announce(error.message, "error"));
   });
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
+    if (message?.type === "SHORTLIST_TOGGLE_KEEP") {
+      if (!state.settings.shortcutEnabled || state.settings.collapsed || Core.parseRoute(location.href)?.kind !== "viewer" || editingText()) {
+        respond({ handled: false });
+        return false;
+      }
+      toggleKeep().then(() => respond({ handled: true }), () => respond({ handled: false }));
+      return true;
+    }
     if (message?.type === "SHORTLIST_STATUS") respond({ available: Boolean(state.route?.albumId), view: state.route?.kind || "unsupported", count: count(), title: state.album?.title || "This album" });
     if (message?.type === "SHORTLIST_SHOW") { setSettings({ collapsed: false }); respond({ ok: true }); }
   });
   request("SETTINGS_GET").then((settings) => { state.settings = settings; render(); }).catch((error) => announce(error.message, "error"));
+  loadShortcut().catch(() => {});
   syncRoute();
   setInterval(syncRoute, 300);
   window.addEventListener("popstate", syncRoute);
-  window.addEventListener("focus", () => { if (state.route?.albumId) loadAlbum().catch((error) => announce(error.message, "error")); });
+  window.addEventListener("focus", () => {
+    loadShortcut().catch(() => {});
+    if (state.route?.albumId) loadAlbum().catch((error) => announce(error.message, "error"));
+  });
 })();

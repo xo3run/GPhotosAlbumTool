@@ -2,6 +2,16 @@
 const contextText = document.getElementById("context");
 const showButton = document.getElementById("show");
 document.getElementById("version").textContent = `v${chrome.runtime.getManifest().version}`;
+chrome.commands.getAll().then((commands) => {
+  const shortcut = commands.find((command) => command.name === "toggle-keep")?.shortcut;
+  const instruction = document.getElementById("shortcut-instruction");
+  instruction.replaceChildren();
+  if (shortcut) {
+    const key = document.createElement("kbd");
+    key.textContent = shortcut;
+    instruction.append("Press ", key, " or click Keep photo.");
+  } else instruction.textContent = "Click Keep photo. Assign a shortcut at chrome://extensions/shortcuts.";
+}).catch(() => {});
 let currentTab;
 
 chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {

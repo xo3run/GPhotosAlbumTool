@@ -3,6 +3,18 @@ importScripts("core.js");
 const Core = globalThis.PhotoShortlist;
 let pending = Promise.resolve();
 
+// Browser commands are dispatched before page keyboard handlers. No single
+// character shortcut is installed in Google Photos itself.
+chrome.commands.onCommand.addListener(async (command, tab) => {
+  if (command !== "toggle-keep") return;
+  try {
+    const activeTab = tab?.id !== undefined ? tab : (await chrome.tabs.query({ active: true, lastFocusedWindow: true }))[0];
+    if (activeTab?.id !== undefined) await chrome.tabs.sendMessage(activeTab.id, { type: "SHORTLIST_TOGGLE_KEEP" });
+  } catch {
+    // A browser command can also be invoked on tabs without our content script.
+  }
+});
+
 // Serialize read/modify/write operations so different tabs cannot lose each other's keeps.
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id || !message?.type?.startsWith("SHORTLIST_STORE_")) return false;
@@ -13,6 +25,10 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 });
 
 async function handle(message) {
+  if (message.type === "SHORTLIST_STORE_SHORTCUT_GET") {
+    const command = (await chrome.commands.getAll()).find((item) => item.name === "toggle-keep");
+    return { shortcut: command?.shortcut || "" };
+  }
   if (message.type === "SHORTLIST_STORE_SETTINGS_GET") {
     const stored = (await chrome.storage.local.get(Core.SETTINGS_KEY))[Core.SETTINGS_KEY];
     return { shortcutEnabled: stored?.shortcutEnabled !== false, collapsed: stored?.collapsed === true };

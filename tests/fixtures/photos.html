@@ -31,7 +31,7 @@
    document.getElementById('back').onclick=()=>go(`${r.path}${r.query}`);
    const move=(delta)=>go(`${r.path}/photo/${state.photos[(index+delta+state.photos.length)%state.photos.length]}${r.query}`);
    document.getElementById('prev').onclick=()=>move(-1);document.getElementById('next').onclick=()=>move(1);
-   window.onkeydown=(e)=>{if(e.target.matches('input,textarea'))return;if(e.key==='ArrowRight')move(1);if(e.key==='ArrowLeft')move(-1);};
+   window.onkeydown=(e)=>{if(e.target.matches('input,textarea'))return;if(e.key==='ArrowRight')move(1);if(e.key==='ArrowLeft'||(e.key.toLowerCase()==='k'&&!e.ctrlKey&&!e.altKey&&!e.metaKey))move(-1);};
   }else{
    window.onkeydown=null;
    const header=document.createElement('header');header.innerHTML='<div class="wordmark"><span>Google</span> Photos</div><span id="native-count"></span><button id="native-add" hidden>Add to album</button><span class="fixture-note">Simulated page · integration test</span><span class="avatar">A</span>';

@@ -16,7 +16,7 @@ const test = base.extend({
       args: ["--no-sandbox"],
     });
     try {
-      const { storage } = await attachHarness(context);
+      const { storage, setShortcut } = await attachHarness(context);
       const page = context.pages()[0] || await context.newPage();
       const errors = [];
       page.on("pageerror", (error) => errors.push(error.message));
@@ -27,7 +27,7 @@ const test = base.extend({
         await storage.set({ [`shortlist:album:v1:${account}:${album}`]: { title: "Weekend in the mountains", photos: ids.map((id) => ({ id, label: "Mountain lake", keptAt: 1 })) } });
         await expect(page.locator("#photo-shortlist-root #count")).toHaveText(String(ids.length));
       };
-      await use({ context, page, seed });
+      await use({ context, page, seed, setShortcut });
       expect(errors).toEqual([]);
     } finally { await context.close(); fs.rmSync(profile, { recursive: true, force: true }); }
   },
@@ -48,20 +48,60 @@ test("keeps only explicit picks; keyboard does not interfere with typing and can
   await page.mouse.click(300, 80);
   await page.keyboard.press("ArrowRight");
   await expect(keep).toHaveAttribute("aria-pressed", "false");
-  await page.keyboard.press("k");
+  await page.keyboard.press("Alt+Shift+S");
   await expect(count(page)).toHaveText("2");
   await page.keyboard.press("ArrowRight");
   await page.evaluate(() => window.fixture.addCommentInput());
   await page.getByRole("textbox", { name: "Comment" }).fill("k");
+  await page.keyboard.press("Alt+Shift+S");
+  await page.evaluate(() => window.__shortlistLastCommand);
   await expect(count(page)).toHaveText("2");
   await page.locator("#photo-shortlist-root summary").click();
-  await page.getByLabel("Enable the K shortcut").uncheck();
+  await page.getByLabel("Enable keyboard shortcut").uncheck();
   await page.mouse.click(300, 80);
-  await page.keyboard.press("k");
-  await expect(keep).not.toHaveAttribute("aria-keyshortcuts", "K");
+  await page.keyboard.press("Alt+Shift+S");
+  await page.evaluate(() => window.__shortlistLastCommand);
+  await expect(keep).not.toHaveAttribute("aria-keyshortcuts", "Alt+Shift+S");
   await expect(count(page)).toHaveText("2");
   await keep.click();
   await expect(count(page)).toHaveText("3");
+});
+
+test("K retains native photo navigation while the browser shortcut keeps the current photo", async ({ browserSession: { page } }) => {
+  await navigate(page, "/album/album-a/photo/photo-003");
+  await expect(page.getByRole("button", { name: "Keep photo", exact: false })).toBeEnabled();
+  await page.mouse.click(300, 80);
+  await page.keyboard.press("k");
+  await expect(page).toHaveURL("https://photos.google.com/album/album-a/photo/photo-002");
+  await expect(count(page)).toHaveText("0");
+  // A native button retaining focus must not block the modifier shortcut.
+  await page.getByRole("button", { name: "Next photo", exact: true }).click();
+  await expect(page).toHaveURL("https://photos.google.com/album/album-a/photo/photo-003");
+  await page.keyboard.press("Alt+Shift+S");
+  await expect(count(page)).toHaveText("1");
+  await expect(page.getByRole("button", { name: "Keep photo", exact: false })).toHaveAttribute("aria-pressed", "true");
+  await expect(page).toHaveURL("https://photos.google.com/album/album-a/photo/photo-003");
+  await page.keyboard.press("Alt+Shift+S");
+  await expect(count(page)).toHaveText("0");
+});
+
+test("the UI follows a remapped or unassigned browser shortcut", async ({ browserSession: { page, setShortcut } }) => {
+  await navigate(page, "/album/album-a/photo/photo-001");
+  const keep = page.getByRole("button", { name: "Keep photo", exact: false });
+  await expect(keep).toHaveAttribute("aria-keyshortcuts", "Alt+Shift+S");
+  await setShortcut("Ctrl+Shift+Y");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(keep).toHaveAttribute("aria-keyshortcuts", "Control+Shift+Y");
+  await expect(page.locator("#photo-shortlist-root #key-hint")).toHaveText("Ctrl+Shift+Y");
+  await page.mouse.click(300, 80);
+  await page.keyboard.press("Control+Shift+Y");
+  await expect(count(page)).toHaveText("1");
+  await setShortcut("");
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(page.locator("#photo-shortlist-root #key-hint")).toBeHidden();
+  await expect(page.locator("#photo-shortlist-root #hint")).toContainText("Assign a shortcut");
+  await keep.click();
+  await expect(count(page)).toHaveText("0");
 });
 
 test("saved progress survives refresh, stays separate across albums and account slots, and stays hidden outside albums", async ({ browserSession: { page, seed } }) => {
@@ -90,7 +130,7 @@ for (const prefix of ["", "/u/1"]) {
     await expect(count(page)).toHaveText("1");
     await page.mouse.click(300, 80);
     await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("k");
+    await page.keyboard.press("Alt+Shift+S");
     await expect(count(page)).toHaveText("2");
     await page.reload();
     await expect(count(page)).toHaveText("2");
