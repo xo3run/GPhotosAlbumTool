@@ -101,6 +101,7 @@
     const readable = candidates.filter((element) => Photos.selectionState(element) !== null);
     const dataNodes = [...document.querySelectorAll(ID_ATTRIBUTES.map((name) => `[${name}]`).join(","))];
     const matched = photoLinks.filter((link) => kept.has(Core.parseRoute(link.href)?.photoId));
+    const items = route?.albumId ? Photos.gridItems(route) : new Map();
     return {
       schema: 1,
       extensionVersion: chrome.runtime.getManifest().version,
@@ -118,8 +119,9 @@
         semanticCheckboxes: document.querySelectorAll('input[type="checkbox"], [role="checkbox"]').length,
         readableSelectionControls: readable.length,
         visibleReadableSelectionControls: readable.filter(shown).length,
-        recognizedGridItems: route?.albumId ? Photos.gridItems(route).size : 0,
+        recognizedGridItems: items.size,
       },
+      nativeSelection: Photos.selectionIndicators(items),
       controlSignatures: signatures(candidates),
       photoSamples: (matched.length ? matched : photoLinks).slice(0, 2).map(ancestry),
       hoveredPhoto: lastHover?.pagePath === location.pathname ? { ancestors: lastHover.ancestors, controls: lastHover.controls } : null,

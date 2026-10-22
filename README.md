@@ -8,7 +8,7 @@ A small Chrome/Edge extension for reviewing Google Photos albums at full size. K
 
 No Google Cloud project, API key, sign-in flow, or build step is needed.
 
-1. Download [photo-shortlist-0.1.4.zip](downloads/photo-shortlist-0.1.4.zip?raw=true) and unzip it into a permanent local folder. You can also use the repository’s `extension/` folder directly.
+1. Download [photo-shortlist-0.1.5.zip](downloads/photo-shortlist-0.1.5.zip?raw=true) and unzip it into a permanent local folder. You can also use the repository’s `extension/` folder directly.
 2. Open `chrome://extensions` (or `edge://extensions`) and enable **Developer mode**.
 3. Click **Load unpacked** and select the folder containing `manifest.json`.
 4. Refresh any already-open Google Photos tabs. Open one of your albums.
@@ -22,6 +22,8 @@ After changing the extension’s code, click **Reload** on its extension card an
 In v0.1.2 or newer, an error shows **Check page layout**. Hover over a photo thumbnail for a moment, click that button, then **Copy layout report** and share the report with the developer. If copying is blocked, the report is selected so you can use Ctrl+C (Command+C on Mac).
 
 The report contains counts, recognized HTML roles, allowlisted attribute names, and a sanitized snapshot of hover-only controls. It excludes photo/album identifiers, URLs, access keys, captions, filenames, raw HTML, and arbitrary attribute values. It is not saved or sent automatically, and generating it does not click anything or change your shortlist. A screenshot alone does not expose the DOM structure needed to fix an unfamiliar layout.
+
+**False “Clear existing selection” warning:** v0.1.5 ignores inactive selection toolbars that are transparent, hidden, offscreen, clipped, or inert, and unrelated checked preferences. It still blocks genuine selections in identified photo tiles or an active native toolbar. The layout report’s `nativeSelection` section shows counts for selected photo controls, visible clear-selection controls, and visible selected-count indicators.
 
 ## Use it
 

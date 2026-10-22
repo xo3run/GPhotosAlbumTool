@@ -11,6 +11,25 @@
   });
   const displayed = (element) => element.isConnected && element.getClientRects().length > 0 && !element.closest('[aria-hidden="true"]');
 
+  function visibleIndicator(element) {
+    if (!displayed(element) || element.closest('[inert]') || !element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true })) return false;
+    const rect = element.getBoundingClientRect();
+    let left = Math.max(0, rect.left), right = Math.min(innerWidth, rect.right);
+    let top = Math.max(0, rect.top), bottom = Math.min(innerHeight, rect.bottom);
+    // A retained toolbar can have layout boxes while translated out of view
+    // or clipped by a collapsed container. Neither proves an active selection.
+    for (let parent = element.parentElement; parent && right > left && bottom > top; parent = parent.parentElement) {
+      const style = getComputedStyle(parent);
+      const clipX = /^(hidden|clip|auto|scroll)$/.test(style.overflowX);
+      const clipY = /^(hidden|clip|auto|scroll)$/.test(style.overflowY);
+      if (!clipX && !clipY) continue;
+      const bounds = parent.getBoundingClientRect();
+      if (clipX) { left = Math.max(left, bounds.left); right = Math.min(right, bounds.right); }
+      if (clipY) { top = Math.max(top, bounds.top); bottom = Math.min(bottom, bounds.bottom); }
+    }
+    return right > left && bottom > top;
+  }
+
   function selectionState(control) {
     if (control instanceof HTMLInputElement && control.type === "checkbox") return control.checked;
     const checked = control.getAttribute("aria-checked");
@@ -83,12 +102,16 @@
       || "This album";
   }
 
-  function hasNativeSelection(items) {
-    if ([...items.values()].some((item) => selectionState(item.control) === true)) return true;
-    if ([...document.querySelectorAll(CONTROLS)].some((control) => displayed(control) && selectionState(control) === true)) return true;
-    // The selected tile may be virtualized out of the DOM. Check the native toolbar too.
-    if ([...document.querySelectorAll('button[aria-label], [role="button"][aria-label]')].some((button) => displayed(button) && /^(clear selection|cancel selection|deselect all|unselect all)$/i.test(button.getAttribute("aria-label").trim()))) return true;
-    return [...document.querySelectorAll('header span, [role="toolbar"] span, [aria-live]')].some((element) => displayed(element) && /^\s*[1-9][\d,]*\s+(?:items?\s+)?selected\s*$/i.test(element.textContent));
+  function selectionIndicators(items) {
+    return {
+      // Only identified photo controls count, not unrelated checked preferences.
+      // Keep reading these even when hover-only controls or tiles are offscreen.
+      selectedPhotos: [...items.values()].filter((item) => selectionState(item.control) === true).length,
+      // A selected tile may be virtualized away; an active toolbar still blocks
+      // mixing selections. Inactive retained toolbars must actually be visible.
+      visibleClearControls: [...document.querySelectorAll('button[aria-label], [role="button"][aria-label]')].filter((button) => /^(clear selection|cancel selection|deselect all|unselect all)$/i.test(button.getAttribute("aria-label").trim()) && visibleIndicator(button)).length,
+      visibleSelectedCounts: [...document.querySelectorAll('header span, [role="toolbar"] span, [aria-live]')].filter((element) => /^\s*[1-9][\d,]*\s+(?:items?\s+)?selected\s*$/i.test(element.textContent) && visibleIndicator(element)).length,
+    };
   }
 
   async function selectKept(route, ids, { signal, onProgress = () => {} } = {}) {
@@ -111,7 +134,7 @@
       if (!items.size) throw new Error(route.albumType === "share"
         ? "No supported photo selection controls found in this shared view. Open the album from your Google Photos library if it offers selection there, or report this layout for an extension update. Your shortlist is saved."
         : "No supported photo selection controls found. Open the album grid and retry. This Google Photos layout may need an extension update.");
-      if (hasNativeSelection(items)) throw new Error("Clear Google Photos’ existing selection first, then retry. Your shortlist is saved.");
+      if (Object.values(selectionIndicators(items)).some((count) => count > 0)) throw new Error("Clear Google Photos’ existing selection first, then retry. Your shortlist is saved.");
       scroller = scrollContainer(items);
       initialScroll = scroller.scrollTop;
       scroller.scrollTo({ top: 0, behavior: "instant" });
@@ -164,5 +187,5 @@
     }
   }
 
-  globalThis.PhotoShortlistAdapter = Object.freeze({ describePhoto, albumTitle, gridItems, selectionState, selectKept });
+  globalThis.PhotoShortlistAdapter = Object.freeze({ describePhoto, albumTitle, gridItems, selectionState, selectionIndicators, selectKept });
 })();

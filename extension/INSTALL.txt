@@ -15,6 +15,10 @@ Keep this folder in place. Reload the extension and refresh Photos after updates
 To update, extract the new ZIP over the files in your existing extension folder.
 The popup displays the loaded version; shared-album support starts in v0.1.1.
 
+v0.1.5 avoids false existing-selection warnings from hidden or offscreen native
+toolbars and unrelated checked settings. Genuine photo selections still block.
+The layout report includes nativeSelection counts to identify the blocking signal.
+
 v0.1.4 keeps the Keep photo button in place when showing keep/unkeep feedback.
 The panel starts at bottom-left to leave Google Photos' information sidebar clear.
 Change Panel position under How it works to use bottom-right; your choice is saved.

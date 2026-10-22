@@ -385,6 +385,65 @@ test("refuses to mix an unrelated native selection with the shortlist", async ({
   expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(4)]);
 });
 
+for (const hiddenBy of ["visibility", "opacity", "offscreen", "clipping", "inert"]) {
+  test(`an inactive selection toolbar hidden by ${hiddenBy} does not block selecting kept photos`, async ({ browserSession: { page, seed } }) => {
+    await seed([photoId(1), photoId(3)]);
+    await page.evaluate((hiddenBy) => {
+      const container = document.createElement("div");
+      container.id = "inactive-selection-toolbar";
+      container.style.cssText = "position:fixed;top:80px;left:400px;width:240px;height:56px";
+      container.innerHTML = '<div role="toolbar"><button aria-label="Clear selection">Close</button><span>1 selected</span></div>';
+      if (hiddenBy === "visibility") container.style.visibility = "hidden";
+      if (hiddenBy === "opacity") container.style.opacity = "0";
+      if (hiddenBy === "offscreen") container.style.transform = "translateY(-200px)";
+      if (hiddenBy === "inert") container.inert = true;
+      if (hiddenBy === "clipping") {
+        container.style.height = "0";
+        container.style.overflow = "hidden";
+      }
+      document.body.append(container);
+    }, hiddenBy);
+    // These controls still have layout boxes, which the previous detector
+    // incorrectly treated as proof of an active native selection.
+    expect(await page.locator('#inactive-selection-toolbar button').evaluate((button) => button.getClientRects().length)).toBeGreaterThan(0);
+    await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+    await expect(feedback(page)).toContainText("All 2 selected.");
+    expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(1), photoId(3)]);
+    expect(await page.evaluate(() => window.fixture.state.addCalls)).toBe(0);
+  });
+}
+
+test("a checked preference outside photo tiles is not a native photo selection", async ({ browserSession: { page, seed } }) => {
+  await seed([photoId(1)]);
+  await page.evaluate(() => {
+    const preference = document.createElement("aside");
+    preference.innerHTML = '<label><input type="checkbox" checked>Show details</label>';
+    document.body.append(preference);
+  });
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("All 1 selected.");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(1)]);
+  await expect(page.getByLabel("Show details", { exact: true })).toBeChecked();
+});
+
+test("a visible Clear selection control protects a selected photo virtualized out of the grid", async ({ browserSession: { page, seed } }) => {
+  await page.evaluate(() => {
+    window.fixture.configure({
+      photos: Array.from({ length: 100 }, (_, i) => `photo-${String(i + 1).padStart(3, '0')}`),
+      virtual: true, selected: new Set(['photo-099']),
+    });
+    document.getElementById("native-count").textContent = "";
+    const clear = document.createElement("button");
+    clear.setAttribute("aria-label", "Clear selection");
+    clear.textContent = "Close";
+    document.querySelector("header").append(clear);
+  });
+  await seed([photoId(1)]);
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("Clear Google Photos’ existing selection first");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(99)]);
+});
+
 test("detects a preexisting selection even when its tile is off screen", async ({ browserSession: { page, seed } }) => {
   await page.evaluate(() => window.fixture.configure({
     photos: Array.from({ length: 100 }, (_, i) => `photo-${String(i + 1).padStart(3, '0')}`),
@@ -394,6 +453,21 @@ test("detects a preexisting selection even when its tile is off screen", async (
   await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
   await expect(feedback(page)).toContainText("Clear Google Photos’ existing selection first");
   expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(99)]);
+});
+
+test("a selected photo outside the viewport still blocks even without a toolbar indicator", async ({ browserSession: { page, seed } }) => {
+  await page.evaluate(() => {
+    window.fixture.configure({
+      photos: Array.from({ length: 64 }, (_, i) => `photo-${String(i + 1).padStart(3, '0')}`),
+      selected: new Set(['photo-064']),
+    });
+    document.getElementById("native-count").textContent = "";
+  });
+  expect(await page.locator('[data-id="photo-064"]').evaluate((tile) => tile.getBoundingClientRect().top > innerHeight)).toBe(true);
+  await seed([photoId(1)]);
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("Clear Google Photos’ existing selection first");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(64)]);
 });
 
 test("does not report success when Google Photos ignores a click", async ({ browserSession: { page, seed } }) => {
