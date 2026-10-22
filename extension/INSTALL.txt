@@ -15,6 +15,11 @@ Keep this folder in place. Reload the extension and refresh Photos after updates
 To update, extract the new ZIP over the files in your existing extension folder.
 The popup displays the loaded version; shared-album support starts in v0.1.1.
 
+v0.1.2 handles recognized controls hidden until hover and relative photo links.
+If selection still fails, hover over a thumbnail briefly, click Check page layout
+in the error message, then Copy layout report. Share that report with the developer.
+The report contains layout metadata, not photo URLs, IDs, captions, or images.
+
 Preview limitation: live Google Photos compatibility still needs verification.
 The automated tests use simulated Photos pages; layout changes may need fixes.
 Nothing is uploaded, deleted, or added to an album automatically.

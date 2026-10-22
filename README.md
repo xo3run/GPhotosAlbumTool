@@ -2,13 +2,13 @@
 
 A small Chrome/Edge extension for reviewing Google Photos albums at full size. Keep the photos you like, return to the album grid, and select them together. You choose **Add to album** in Google Photos yourself.
 
-**Preview:** the UI and selection logic have browser-fixture tests. Installation and compatibility with the current, signed-in Google Photos page still need a manual check. Google’s page structure can change; this extension stops when it cannot identify or confirm a supported selection control.
+**Preview:** installation, the toolbar, and keeping picks have been tested by a user in Google Photos. Bulk selection failed to recognize the controls in that user’s album layout. Version 0.1.2 handles hover-hidden controls and base-relative photo links, and adds a read-only layout report to diagnose any remaining mismatch. These cases have fixture tests; the updated integration still needs checking on the real page. The extension stops when it cannot identify or confirm a supported selection control.
 
 ## Install without the Chrome Web Store
 
 No Google Cloud project, API key, sign-in flow, or build step is needed.
 
-1. Download [photo-shortlist-0.1.1.zip](downloads/photo-shortlist-0.1.1.zip?raw=true) and unzip it into a permanent local folder. You can also use the repository’s `extension/` folder directly.
+1. Download [photo-shortlist-0.1.2.zip](downloads/photo-shortlist-0.1.2.zip?raw=true) and unzip it into a permanent local folder. You can also use the repository’s `extension/` folder directly.
 2. Open `chrome://extensions` (or `edge://extensions`) and enable **Developer mode**.
 3. Click **Load unpacked** and select the folder containing `manifest.json`.
 4. Refresh any already-open Google Photos tabs. Open one of your albums.
@@ -16,6 +16,12 @@ No Google Cloud project, API key, sign-in flow, or build step is needed.
 After changing the extension’s code, click **Reload** on its extension card and refresh Google Photos again. Keep the folder in place while the extension is installed.
 
 **Updating an existing installation:** extract the new ZIP over the files in your existing extension folder, keeping that folder’s location the same. Click **Reload** on its extension card, then refresh Google Photos. This keeps your existing shortlists and avoids installing a second copy. The popup displays the loaded version; the shared-album fix is in **v0.1.1**.
+
+## If selection fails
+
+In v0.1.2 or newer, an error shows **Check page layout**. Hover over a photo thumbnail for a moment, click that button, then **Copy layout report** and share the report with the developer. If copying is blocked, the report is selected so you can use Ctrl+C (Command+C on Mac).
+
+The report contains counts, recognized HTML roles, allowlisted attribute names, and a sanitized snapshot of hover-only controls. It excludes photo/album identifiers, URLs, access keys, captions, filenames, raw HTML, and arbitrary attribute values. It is not saved or sent automatically, and generating it does not click anything or change your shortlist. A screenshot alone does not expose the DOM structure needed to fix an unfamiliar layout.
 
 ## Use it
 
@@ -37,6 +43,7 @@ The **K** shortcut is active only in the full-size album viewer while the panel 
 - Shared-album review works independently of whether that Google Photos view offers native selection controls. Applying the shortlist requires those controls; if the shared view does not expose them, the extension reports that limitation. Open the album from your own library if selection is available there. The extension does not join albums or copy shared photos into your library.
 - The English Google Photos interface is recommended. Semantic checkboxes work without translating their labels, but fallback selection buttons and off-screen native-selection detection use English labels.
 - Google Photos controls must expose a photo link or matching `data-id`, plus a readable checkbox/selection state. Unknown or ambiguous layouts require an adapter update; no guessed clicks or private API calls are used.
+- A recognized control may be hidden until hover as long as its photo tile is visible and unambiguous. Selection still requires Google Photos to confirm its state. Relative thumbnail links are resolved using the browser’s actual page base URL.
 - Large albums are scanned by scrolling their container, including virtualized tiles. A scan stops after three minutes. Missing photos and partial results are reported separately from success. A photo’s ID may differ between real viewer/grid versions; that compatibility is **not yet verified on a live account**.
 - Stopping a scan or encountering a failure leaves any photos already selected in Google Photos selected. Clear that native selection before retrying. The saved shortlist remains intact.
 - Shortlists are separate for each album and Google account **slot** (for example `/u/0` versus `/u/1`). A slot is not a verified account identity and can change after sign-out/account reordering. Check the account before resuming a shortlist.
@@ -59,6 +66,6 @@ npm run package
 
 Browser tests use system Chromium when available at `/usr/bin/chromium`; otherwise install Playwright Chromium with `npx playwright install chromium`. Set `SHORTLIST_CHROMIUM_PATH` if a different browser executable is needed. `npm run package` also needs Python 3 and updates the zip in `downloads/`, containing **only** the extension files, with `manifest.json` at its root.
 
-The cloud browser blocks unpacked extension installation through a managed policy. The browser suite therefore runs the **actual packaged content scripts** on intercepted, simulated Photos pages, with a Chrome API bridge and the **actual storage worker code** in a VM. The fixtures exercise full-size navigation, shared-album deep links with synthetic access keys, persistence, multiple tabs/accounts/albums, virtualized grids, cancellation, unsupported controls, partial selection, and light/dark accessible UI. They do **not** validate Chrome’s extension loader, content-script isolated worlds, or the live Google Photos DOM. No tests access a real photo account.
+The cloud browser blocks unpacked extension installation through a managed policy. The browser suite therefore runs the **actual packaged content scripts** on intercepted, simulated Photos pages, with a Chrome API bridge and the **actual storage worker code** in a VM. The fixtures exercise full-size navigation, shared-album deep links with synthetic access keys, persistence, multiple tabs/accounts/albums, virtualized grids, hover-hidden controls, relative links, diagnostic privacy, cancellation, unsupported controls, partial selection, and light/dark accessible UI. They do **not** validate Chrome’s extension loader, content-script isolated worlds, or the live Google Photos DOM. No tests access a real photo account.
 
 See [UI decisions](docs/UI.md), the [manual integration checklist](docs/MANUAL_TEST.md), and the [original project brief](docs/PROJECT_BRIEF.md).

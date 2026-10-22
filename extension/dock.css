@@ -41,6 +41,11 @@ kbd { font: inherit; font-size: 11px; border: 1px solid currentColor; border-rad
 #feedback-wrap[data-kind="warning"] { background: #fff6df; color: #725008; border-color: #e4c88a; }
 #feedback-wrap[data-kind="success"] { color: var(--accent); }
 #undo { min-height: 32px; color: var(--accent); padding-left: 0; }
+#diagnose { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+#diagnostic-panel { padding: 6px 0 12px; }
+#diagnostic-panel > label { font-size: 12px; font-weight: 600; }
+#diagnostic-report { width: 100%; margin: 10px 0; resize: vertical; min-height: 100px; max-height: 220px; border: 1px solid var(--line); border-radius: 7px; padding: 8px; color: var(--text); background: var(--soft); font: 11px/1.5 ui-monospace, monospace; }
+#diagnostic-report:focus-visible { outline: 3px solid #6b9dff; outline-offset: 3px; }
 details { border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); }
 summary { cursor: pointer; min-height: 32px; padding-top: 10px; border-radius: 4px; font-size: 11px; }
 details ol { padding-left: 20px; line-height: 1.8; }

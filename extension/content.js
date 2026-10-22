@@ -3,6 +3,7 @@
   if (document.getElementById("photo-shortlist-root")) return;
   const Core = globalThis.PhotoShortlist;
   const Photos = globalThis.PhotoShortlistAdapter;
+  const Diagnostics = globalThis.PhotoShortlistDiagnostics;
   const state = {
     route: null, album: null, settings: { shortcutEnabled: true, collapsed: false },
     saving: false, running: false, controller: null, undo: null, feedback: "", feedbackKind: "info", revision: 0,
@@ -29,7 +30,8 @@
         <div id="progress-area" hidden><label id="progress-label" for="progress">Selecting photos…</label><progress id="progress" max="1" value="0"></progress><button id="cancel" class="secondary" type="button">Stop selecting</button></div>
         <div class="actions"><button id="review-toggle" class="text-button" type="button" aria-expanded="false" aria-controls="review">Review shortlist</button><button id="clear" class="text-button" type="button">Clear</button></div>
         <div id="review" hidden><ol id="kept-list" aria-label="Kept photos"></ol><p id="review-note" class="small" hidden></p></div>
-        <div id="feedback-wrap" hidden><p id="feedback" role="status" aria-live="polite" aria-atomic="true"></p><button id="undo" class="text-button" type="button" hidden>Undo clear</button></div>
+        <div id="feedback-wrap" hidden><p id="feedback" role="status" aria-live="polite" aria-atomic="true"></p><button id="undo" class="text-button" type="button" hidden>Undo clear</button><button id="diagnose" class="text-button" type="button" hidden>Check page layout</button></div>
+        <section id="diagnostic-panel" aria-label="Layout diagnostics" hidden><label for="diagnostic-report">Layout report</label><p class="small">Layout details only: no photo links, IDs, captions, or images. Nothing is sent automatically.</p><textarea id="diagnostic-report" aria-label="Layout report" rows="7" readonly spellcheck="false"></textarea><button id="copy-diagnostic" class="secondary" type="button">Copy layout report</button><p id="diagnostic-status" class="small" role="status" aria-live="polite"></p></section>
         <details id="help"><summary>How it works</summary><ol><li>Open a photo in this album.</li><li>Use <strong>Keep photo</strong> as you browse.</li><li>Return to the grid and select kept photos.</li><li>Use Google Photos’ <strong>Add to album</strong>.</li></ol><label class="setting"><input id="shortcut" type="checkbox" checked> Enable the K shortcut</label><p class="small">Your shortlist stays in this browser. Nothing is added to an album automatically. English selection labels and semantic checkboxes are supported.</p></details>
       </div>
       <button id="expand" type="button" hidden><span class="brand-icon" aria-hidden="true">▧</span><span id="compact-count">0 kept</span><span aria-hidden="true">⌃</span></button>
@@ -92,6 +94,8 @@
     $("feedback-wrap").dataset.kind = state.feedbackKind;
     $("undo").hidden = !state.undo;
     $("undo").disabled = busy;
+    $("diagnose").hidden = state.feedbackKind !== "error";
+    $("diagnose").disabled = busy;
   }
 
   function renderReview() {
@@ -185,6 +189,7 @@
     state.running = true;
     state.undo = null;
     state.feedback = "The album will scroll while kept photos are selected.";
+    $("diagnostic-panel").hidden = true;
     $("review").hidden = true;
     $("review-toggle").setAttribute("aria-expanded", "false");
     $("help").open = false;
@@ -219,6 +224,22 @@
   $("keep").addEventListener("click", toggleKeep);
   $("apply").addEventListener("click", applySelection);
   $("cancel").addEventListener("click", () => state.controller?.abort());
+  $("diagnose").addEventListener("click", () => {
+    $("diagnostic-report").value = JSON.stringify(Diagnostics.collect(state.route, state.album?.photos.map((photo) => photo.id) || []), null, 2);
+    $("diagnostic-panel").hidden = false;
+    $("diagnostic-status").textContent = "Hover over a photo for a moment before generating a report to include hover-only controls.";
+    $("copy-diagnostic").focus();
+  });
+  $("copy-diagnostic").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText($("diagnostic-report").value);
+      $("diagnostic-status").textContent = "Report copied. You can share it with the developer.";
+    } catch {
+      $("diagnostic-report").focus();
+      $("diagnostic-report").select();
+      $("diagnostic-status").textContent = "Press Ctrl+C (Command+C on Mac) to copy the selected report.";
+    }
+  });
   $("collapse").addEventListener("click", async () => { await setSettings({ collapsed: true }); $("expand").focus(); });
   $("expand").addEventListener("click", async () => { await setSettings({ collapsed: false }); $("collapse").focus(); });
   $("shortcut").addEventListener("change", () => setSettings({ shortcutEnabled: $("shortcut").checked }));
@@ -262,6 +283,7 @@
     const changed = !sameAlbum(state.route, next);
     state.route = next;
     state.feedback = "";
+    $("diagnostic-panel").hidden = true;
     if (changed) {
       state.album = null;
       state.undo = null;

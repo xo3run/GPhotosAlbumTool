@@ -166,6 +166,105 @@ test("supports tiles exposing stable data IDs without links", async ({ browserSe
   expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(2), photoId(5)]);
 });
 
+for (const hrefPrefix of ["./photo/", "photo/"]) {
+  test(`resolves base-relative thumbnail links (${hrefPrefix}) without data-ID fallbacks`, async ({ browserSession: { page, seed } }) => {
+    await page.evaluate((hrefPrefix) => {
+      const base = document.createElement("base");
+      base.href = `${location.origin}${location.pathname}/`;
+      document.head.prepend(base);
+      for (const card of document.querySelectorAll("article[data-id]")) {
+        card.querySelector("a").setAttribute("href", hrefPrefix + card.dataset.id);
+        card.removeAttribute("data-id");
+      }
+    }, hrefPrefix);
+    await seed([photoId(1), photoId(3)]);
+    await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+    await expect(feedback(page)).toContainText("All 2 selected.");
+    expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(1), photoId(3)]);
+  });
+}
+
+test("layout diagnostics explain unrecognized controls without exposing private content or modifying selections", async ({ browserSession: { page, seed } }) => {
+  const privateValues = ["private-caption-content", "private-access-key", "private-filename.jpg", "private-role-content", "photo-001", "photo-003", "album-a"];
+  await seed([photoId(1), photoId(3)]);
+  await page.evaluate(() => {
+    document.title = "private-caption-content";
+    for (const control of document.querySelectorAll('article [role="checkbox"]')) {
+      control.removeAttribute("role");
+      control.removeAttribute("aria-checked");
+      control.setAttribute("aria-label", "private-caption-content");
+      control.setAttribute("data-tooltip", "private-filename.jpg");
+      control.setAttribute("jsaction", "click:private-access-key;private-role-content:handler");
+    }
+    for (const link of document.querySelectorAll("article a")) link.href += "?key=private-access-key";
+    const unknown = document.createElement("private-role-content");
+    unknown.setAttribute("role", "private-role-content");
+    unknown.textContent = "private-caption-content";
+    document.body.append(unknown);
+  });
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("No supported photo selection controls found.");
+  await page.locator("article img").first().hover();
+  await expect.poll(() => page.evaluate(() => PhotoShortlistDiagnostics.collect(PhotoShortlist.parseRoute(location.href)).hoveredPhoto !== null)).toBe(true);
+  await page.getByRole("button", { name: "Check page layout", exact: true }).click();
+  const reportText = await page.getByRole("textbox", { name: "Layout report", exact: true }).inputValue();
+  const report = JSON.parse(reportText);
+  expect(report.view).toBe("album");
+  expect(report.counts.recognizedGridItems).toBe(0);
+  expect(report.counts.linksMatchingKeptPhotos).toBe(2);
+  expect(report.counts.dataIdentifiersMatchingKeptPhotos).toBe(2);
+  expect(report.hoveredPhoto).not.toBeNull();
+  for (const value of privateValues) expect(reportText).not.toContain(value);
+  expect(reportText.length).toBeLessThan(16000);
+  await expect(count(page)).toHaveText("2");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([]);
+  expect(await page.evaluate(() => window.fixture.state.addCalls)).toBe(0);
+  await page.evaluate(axeSource);
+  const violations = await page.evaluate(async () => (await axe.run({ include: ["#photo-shortlist-root"] }, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21aa", "wcag22aa"] } })).violations.map((violation) => violation.id));
+  expect(violations).toEqual([]);
+});
+
+test("native controls hidden until hover can select their identified photo without opening the viewer", async ({ browserSession: { page, seed } }) => {
+  await seed([photoId(1), photoId(3)]);
+  await page.locator('article [role="checkbox"]').evaluateAll((controls) => controls.forEach((control) => { control.style.display = "none"; }));
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("All 2 selected.");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(1), photoId(3)]);
+  await expect(page).toHaveURL("https://photos.google.com/album/album-a");
+  expect(await page.evaluate(() => window.fixture.state.addCalls)).toBe(0);
+});
+
+test("a native selection hidden until hover still blocks mixing selections", async ({ browserSession: { page, seed } }) => {
+  await page.locator('[data-id="photo-004"] [role="checkbox"]').click();
+  await page.locator('article [role="checkbox"]').evaluateAll((controls) => controls.forEach((control) => { control.style.display = "none"; }));
+  await seed([photoId(1)]);
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("Clear Google Photos’ existing selection first");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(4)]);
+});
+
+test("layout report retains a sanitized snapshot of controls that only appear on hover", async ({ browserSession: { page, seed } }) => {
+  await seed([photoId(1)]);
+  await page.evaluate(() => {
+    window.fixture.state.refuseClick = true;
+    for (const card of document.querySelectorAll("article")) {
+      const control = card.querySelector('[role="checkbox"]');
+      control.style.display = "none";
+      card.onpointerenter = () => { control.style.display = "block"; };
+      card.onpointerleave = () => { control.style.display = "none"; };
+    }
+  });
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("did not confirm a selection");
+  await page.locator("article img").first().hover();
+  await expect.poll(() => page.evaluate(() => PhotoShortlistDiagnostics.collect(PhotoShortlist.parseRoute(location.href)).hoveredPhoto?.controls.some((control) => control.role === "checkbox" && control.visible) || false)).toBe(true);
+  await page.getByRole("button", { name: "Check page layout", exact: true }).click();
+  const report = JSON.parse(await page.getByRole("textbox", { name: "Layout report", exact: true }).inputValue());
+  expect(report.counts.visibleReadableSelectionControls).toBe(0);
+  expect(report.hoveredPhoto.controls.some((control) => control.role === "checkbox" && control.visible)).toBe(true);
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([]);
+});
+
 test("refuses to mix an unrelated native selection with the shortlist", async ({ browserSession: { page, seed } }) => {
   await page.locator('[data-id="photo-004"] [role="checkbox"]').click();
   await seed([photoId(1)]);

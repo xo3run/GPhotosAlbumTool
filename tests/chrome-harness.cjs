@@ -58,12 +58,13 @@ async function attachHarness(context) {
   }, JSON.parse(fs.readFileSync(path.join(extensionPath, "manifest.json"), "utf8")));
   await context.route("https://shortlist.test/**", (route) => {
     const file = new URL(route.request().url()).pathname.slice(1);
-    if (!["core.js", "photos-adapter.js", "content.js", "dock.css", "popup.html", "popup.js", "popup.css"].includes(file)) return route.abort();
+    if (!["core.js", "photos-adapter.js", "diagnostics.js", "content.js", "dock.css", "popup.html", "popup.js", "popup.css"].includes(file)) return route.abort();
     const contentType = file.endsWith(".js") ? "application/javascript" : file.endsWith(".css") ? "text/css" : "text/html";
     return route.fulfill({ path: path.join(extensionPath, file), contentType });
   });
   const originalFixture = fs.readFileSync(path.join(__dirname, "fixtures/photos.html"), "utf8");
-  const scripts = ["core.js", "photos-adapter.js", "content.js"].map((file) => `<script src="https://shortlist.test/${file}"></script>`).join("");
+  const manifest = JSON.parse(fs.readFileSync(path.join(extensionPath, "manifest.json"), "utf8"));
+  const scripts = manifest.content_scripts[0].js.map((file) => `<script src="https://shortlist.test/${file}"></script>`).join("");
   await context.route("https://photos.google.com/**", (route) => route.fulfill({ body: originalFixture.replace("</body>", `${scripts}</body>`), contentType: "text/html" }));
   return { storage };
 }

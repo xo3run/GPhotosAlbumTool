@@ -1,6 +1,6 @@
 # Check the real Google Photos integration
 
-Use an album you own with a few photos before testing a large album. This checklist is outstanding until run in a normal browser; the cloud browser's managed policy blocks installing unpacked extensions.
+Use an album you own with a few photos before testing a large album. A user has confirmed installation, the toolbar and saved picks; native selection failed on their current layout. The v0.1.2 changes below still need live verification. The cloud browser's managed policy blocks installing unpacked extensions.
 
 1. Load `extension/` unpacked in desktop Chrome or Edge. Confirm no errors on its extension card. Refresh Google Photos and open a regular album.
 2. Confirm the panel appears in regular and shared `/share/…` album grids and photo viewers, and disappears on the main photo feed. For a shared photo, test opening its link directly and refreshing the viewer; the toolbar should appear without first visiting the album grid. Confirm the popup shows v0.1.1 or newer.
@@ -15,5 +15,7 @@ Use an album you own with a few photos before testing a large album. This checkl
 11. With an unrelated photo already selected, including one scrolled out of view, confirm the extension asks you to clear Google Photos’ selection before proceeding.
 12. Clear the local shortlist, undo it, and confirm neither operation changes Google Photos’ native selection. Clear it again after completing the destination album.
 13. In a shared album, confirm Review shortlist links reopen the same photos with the current access key. Keep photos, return to its grid, and try selecting them. If Google Photos does not offer native selection controls in that shared view, confirm the extension reports the limitation and preserves the shortlist instead of claiming success.
+14. Try selecting kept photos with the mouse away from all thumbnails. Confirm native controls that are hidden until hover can still select the right photos and the reported native count matches.
+15. If selection fails, hover over a thumbnail for a moment, then use Check page layout in the error message. Inspect the report and confirm it contains counts and structural metadata, without URLs, photo IDs, captions, access keys, or raw HTML. Copy it (or use the selected text fallback) to share with the developer. Verify no native selections or shortlist entries change when generating the report.
 
 If viewer IDs and tile IDs differ, or controls are not exposed in a supported shape, the DOM adapter needs a code change. Do not work around this with guessed selectors, session extraction, or undocumented Google API requests.

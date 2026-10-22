@@ -23,7 +23,7 @@
   }
 
   function photoIdFromLink(link, route) {
-    const parsed = Core.parseRoute(link.getAttribute("href"), location.href);
+    const parsed = Core.parseRoute(link.href);
     if (!parsed?.photoId || parsed.account !== route.account) return null;
     return !parsed.albumId || parsed.albumId === route.albumId ? parsed.photoId : null;
   }
@@ -31,9 +31,12 @@
   function findControl(link, route) {
     let card = link;
     for (let depth = 0; card && card !== document.body && depth < 6; depth++, card = card.parentElement) {
-      const ids = new Set([...card.querySelectorAll('a[href*="/photo/"]')].map((a) => photoIdFromLink(a, route)).filter(Boolean));
+      const ids = new Set([...card.querySelectorAll('a[href]')].map((a) => photoIdFromLink(a, route)).filter(Boolean));
       if (ids.size > 1) return null;
-      const controls = [...card.querySelectorAll(CONTROLS)].filter((element) => selectionState(element) !== null && displayed(element));
+      // Photos can keep its checkmark control display:none until the tile is
+      // hovered. The enclosing photo must be visible; the identified native
+      // control can be hidden, and its state is still verified after clicking.
+      const controls = [...card.querySelectorAll(CONTROLS)].filter((element) => selectionState(element) !== null);
       if (controls.length === 1) return { card, control: controls[0] };
       if (controls.length > 1) return null;
     }
@@ -42,7 +45,7 @@
 
   function gridItems(route) {
     const items = new Map();
-    for (const link of document.querySelectorAll('a[href*="/photo/"]')) {
+    for (const link of document.querySelectorAll('a[href]')) {
       if (!displayed(link)) continue;
       const id = photoIdFromLink(link, route);
       if (!id) continue;
@@ -54,7 +57,7 @@
       const id = card.getAttribute("data-id");
       if (!Core.validId(id) || items.has(id) || !displayed(card)) continue;
       if (card.querySelectorAll("[data-id]").length) continue;
-      const controls = [...card.querySelectorAll(CONTROLS)].filter((control) => selectionState(control) !== null && displayed(control));
+      const controls = [...card.querySelectorAll(CONTROLS)].filter((control) => selectionState(control) !== null);
       if (controls.length === 1) items.set(id, { card, control: controls[0], id });
     }
     return items;
@@ -80,7 +83,8 @@
       || "This album";
   }
 
-  function hasNativeSelection() {
+  function hasNativeSelection(items) {
+    if ([...items.values()].some((item) => selectionState(item.control) === true)) return true;
     if ([...document.querySelectorAll(CONTROLS)].some((control) => displayed(control) && selectionState(control) === true)) return true;
     // The selected tile may be virtualized out of the DOM. Check the native toolbar too.
     if ([...document.querySelectorAll('button[aria-label], [role="button"][aria-label]')].some((button) => displayed(button) && /^(clear selection|cancel selection|deselect all|unselect all)$/i.test(button.getAttribute("aria-label").trim()))) return true;
@@ -107,7 +111,7 @@
       if (!items.size) throw new Error(route.albumType === "share"
         ? "No supported photo selection controls found in this shared view. Open the album from your Google Photos library if it offers selection there, or report this layout for an extension update. Your shortlist is saved."
         : "No supported photo selection controls found. Open the album grid and retry. This Google Photos layout may need an extension update.");
-      if (hasNativeSelection()) throw new Error("Clear Google Photos’ existing selection first, then retry. Your shortlist is saved.");
+      if (hasNativeSelection(items)) throw new Error("Clear Google Photos’ existing selection first, then retry. Your shortlist is saved.");
       scroller = scrollContainer(items);
       initialScroll = scroller.scrollTop;
       scroller.scrollTo({ top: 0, behavior: "instant" });

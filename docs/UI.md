@@ -10,6 +10,7 @@ The workflow is deliberately contextual: Google Photos continues to display and 
 - **Reversible actions.** Clear only changes the local shortlist and provides Undo. Native selections are left visible after a stopped scan. Existing selections must be cleared before applying a shortlist.
 - **Isolated presentation.** A shadow root prevents most styling collisions with Google Photos. UI strings read from the page are inserted using `textContent`; photo links are reconstructed from validated identifiers.
 - **Minimal access.** A single-site content script and local storage; no all-sites permission, tabs permission, cookies, private Google endpoints, remote scripts, or photo uploads.
+- **Actionable compatibility errors.** An error offers a read-only layout report with counts, allowlisted structural metadata, and a sanitized hover snapshot. Users explicitly copy it; nothing is transmitted. Raw HTML, labels, photo identifiers, URLs, and arbitrary attribute values are excluded from the report.
 
 Automated axe checks cover WCAG A/AA rules for the dock and popup. Fixture screenshots cover album, full-size review, dark theme, and narrow layout. Keyboard behavior is exercised separately. This is useful automated coverage, not a claim of complete accessibility conformance or real Photos compatibility.
 
