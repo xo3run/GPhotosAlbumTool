@@ -104,7 +104,9 @@
     try {
       guard();
       let items = gridItems(route);
-      if (!items.size) throw new Error("No supported photo selection controls found. Open the album grid and retry. This Google Photos layout may need an extension update.");
+      if (!items.size) throw new Error(route.albumType === "share"
+        ? "No supported photo selection controls found in this shared view. Open the album from your Google Photos library if it offers selection there, or report this layout for an extension update. Your shortlist is saved."
+        : "No supported photo selection controls found. Open the album grid and retry. This Google Photos layout may need an extension update.");
       if (hasNativeSelection()) throw new Error("Clear Google Photos’ existing selection first, then retry. Your shortlist is saved.");
       scroller = scrollContainer(items);
       initialScroll = scroller.scrollTop;

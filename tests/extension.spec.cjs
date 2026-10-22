@@ -74,8 +74,58 @@ test("saved progress survives refresh, stays separate across albums and account 
   await expect(count(page)).toHaveText("0");
   await navigate(page, "/u/0/album/album-a");
   await expect(count(page)).toHaveText("2");
-  await navigate(page, "/share/shared-album");
+  await navigate(page, "/photos");
   await expect(page.locator("#photo-shortlist-root")).toBeHidden();
+});
+
+for (const prefix of ["", "/u/1"]) {
+  test(`shared album deep links show the toolbar, retain picks and select the grid (${prefix || "default account"})`, async ({ browserSession: { page, context } }) => {
+    const accessKey = "synthetic-access-key";
+    const albumPath = `${prefix}/share/shared-album`;
+    await page.goto(`https://photos.google.com${albumPath}/photo/photo-001?key=${accessKey}`);
+    const keep = page.getByRole("button", { name: "Keep photo", exact: false });
+    await expect(keep).toBeVisible();
+    await expect(keep).toBeEnabled();
+    await keep.click();
+    await expect(count(page)).toHaveText("1");
+    await page.mouse.click(300, 80);
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("k");
+    await expect(count(page)).toHaveText("2");
+    await page.reload();
+    await expect(count(page)).toHaveText("2");
+    await page.getByRole("button", { name: "Review shortlist" }).click();
+    await expect(page.locator("#photo-shortlist-root #kept-list a").first()).toHaveAttribute("href", `https://photos.google.com${albumPath}/photo/photo-001?key=${accessKey}`);
+    const response = await page.evaluate(() => chrome.runtime.sendMessage({ type: "SHORTLIST_STORE_GET", albumUrl: location.origin + location.pathname }));
+    expect(response.ok).toBe(true);
+    expect(response.data.photos).toHaveLength(2);
+    expect(JSON.stringify(response.data)).not.toContain(accessKey);
+    expect(JSON.stringify(response.data)).not.toContain("key=");
+    const popup = await context.newPage();
+    await popup.goto("https://shortlist.test/popup.html");
+    await expect(popup.getByRole("button", { name: "Show shortlist in this album" })).toBeVisible();
+    await popup.close();
+    await page.getByRole("button", { name: "Back to album" }).click();
+    await expect(page).toHaveURL(`https://photos.google.com${albumPath}?key=${accessKey}`);
+    await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+    await expect(feedback(page)).toContainText("All 2 selected.");
+    expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(1), photoId(2)]);
+    expect(await page.evaluate(() => window.fixture.state.addCalls)).toBe(0);
+  });
+}
+
+test("shared views without native selection controls preserve picks and explain the limitation", async ({ browserSession: { page } }) => {
+  await page.goto("https://photos.google.com/share/shared-album/photo/photo-001?key=synthetic-access-key");
+  await page.getByRole("button", { name: "Keep photo", exact: false }).click();
+  await expect(count(page)).toHaveText("1");
+  await page.getByRole("button", { name: "Back to album" }).click();
+  await expect(page.getByRole("button", { name: "Select kept photos", exact: false })).toBeVisible();
+  await page.locator('[role="checkbox"]').evaluateAll((controls) => controls.forEach((control) => control.remove()));
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("No supported photo selection controls found in this shared view.");
+  await expect(count(page)).toHaveText("1");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([]);
+  expect(await page.evaluate(() => window.fixture.state.addCalls)).toBe(0);
 });
 
 test("review, remove, collapse, clear and undo affect only the local shortlist", async ({ browserSession: { page, seed } }) => {

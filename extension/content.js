@@ -40,7 +40,7 @@
   const sameAlbum = (a, b) => a?.albumId && b?.albumId && Core.albumKey(a) === Core.albumKey(b);
 
   async function request(type, extra = {}, route = state.route) {
-    const response = await chrome.runtime.sendMessage({ type: `SHORTLIST_STORE_${type}`, albumUrl: route?.albumId ? `${Core.ORIGIN}${route.albumPath}${route.query || ""}` : undefined, ...extra });
+    const response = await chrome.runtime.sendMessage({ type: `SHORTLIST_STORE_${type}`, albumUrl: route?.albumId ? `${Core.ORIGIN}${route.albumPath}${route.accountQuery || ""}` : undefined, ...extra });
     if (!response?.ok) throw new Error(response?.error || "Could not access local storage. Reload Google Photos after reloading the extension.");
     return response.data;
   }
@@ -270,6 +270,7 @@
       $("review-toggle").setAttribute("aria-expanded", "false");
     }
     render();
+    renderReview();
     if (next?.albumId && (changed || !state.album)) {
       try { await loadAlbum(next); } catch (error) { announce(error.message, "error"); }
     }
@@ -280,7 +281,7 @@
     if (state.route?.albumId && changes[Core.albumKey(state.route)]) loadAlbum().catch((error) => announce(error.message, "error"));
   });
   chrome.runtime.onMessage.addListener((message, _sender, respond) => {
-    if (message?.type === "SHORTLIST_STATUS") respond({ available: Boolean(state.route?.albumId), count: count(), title: state.album?.title || "This album" });
+    if (message?.type === "SHORTLIST_STATUS") respond({ available: Boolean(state.route?.albumId), view: state.route?.kind || "unsupported", count: count(), title: state.album?.title || "This album" });
     if (message?.type === "SHORTLIST_SHOW") { setSettings({ collapsed: false }); respond({ ok: true }); }
   });
   request("SETTINGS_GET").then((settings) => { state.settings = settings; render(); }).catch((error) => announce(error.message, "error"));

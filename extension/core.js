@@ -24,18 +24,29 @@
         if (!/^\d{1,3}$/.test(authuser) || (prefix && account !== authuser)) return null;
         account = authuser;
       }
-      const query = authuser !== null && !prefix ? `?authuser=${authuser}` : "";
+      const accountQuery = authuser !== null && !prefix ? `?authuser=${authuser}` : "";
+      const params = new URLSearchParams(accountQuery.slice(1));
+      const accessKey = url.searchParams.get("key");
+      if (accessKey) {
+        if (accessKey.length > 2048 || /[\u0000-\u001f\u007f]/.test(accessKey)) return null;
+        params.set("key", accessKey);
+      }
+      // Access keys stay in the live route only, so review links can reopen a
+      // shared photo. They never become part of an album's stored metadata.
+      const query = params.size ? `?${params}` : "";
       if (parts[0] === "photo" && parts.length === 2 && validId(parts[1])) {
         return { kind: "standalone", account, photoId: parts[1], albumId: null };
       }
-      if (parts[0] !== "album" || !validId(parts[1])) return null;
+      if (!["album", "share"].includes(parts[0]) || !validId(parts[1])) return null;
       if (parts.length !== 2 && !(parts.length === 4 && parts[2] === "photo" && validId(parts[3]))) return null;
       return {
         kind: parts.length === 4 ? "viewer" : "album",
         account,
+        albumType: parts[0],
         albumId: parts[1],
         photoId: parts[3] || null,
-        albumPath: `${prefix}/album/${parts[1]}`,
+        albumPath: `${prefix}/${parts[0]}/${parts[1]}`,
+        accountQuery,
         query,
       };
     } catch { return null; }

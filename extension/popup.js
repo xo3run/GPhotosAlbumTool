@@ -1,6 +1,7 @@
 "use strict";
 const contextText = document.getElementById("context");
 const showButton = document.getElementById("show");
+document.getElementById("version").textContent = `v${chrome.runtime.getManifest().version}`;
 let currentTab;
 
 chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
@@ -10,7 +11,9 @@ chrome.tabs.query({ active: true, currentWindow: true }).then(async ([tab]) => {
     if (status?.available) {
       contextText.textContent = `${status.title} · ${status.count} photo${status.count === 1 ? "" : "s"} kept`;
       showButton.hidden = false;
-    } else contextText.textContent = "Open a regular album in Google Photos to start. Shared album links and the main photo feed aren’t supported yet.";
+    } else contextText.textContent = status?.view === "standalone"
+      ? "Open this photo from an album to start a shortlist. A standalone photo has no source album to return to."
+      : "Open an album or shared album in Google Photos, then open a photo. The main photo feed isn’t supported yet.";
   } catch {
     contextText.textContent = "Open a Google Photos album. If it’s already open, refresh the page after loading the extension.";
   }

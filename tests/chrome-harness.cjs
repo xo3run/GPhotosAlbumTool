@@ -24,7 +24,7 @@ async function attachHarness(context) {
     },
   };
   const sandbox = vm.createContext({
-    console, URL,
+    console, URL, URLSearchParams,
     chrome: { runtime: { id: "shortlist-test", onMessage: { addListener(fn) { listener = fn; } } }, storage: { local: storage } },
     importScripts(file) { vm.runInContext(fs.readFileSync(path.join(extensionPath, file), "utf8"), sandbox, { filename: file }); },
   });
@@ -33,7 +33,7 @@ async function attachHarness(context) {
   await context.exposeFunction("__shortlistTabs", () => [{ id: 0 }]);
   await context.exposeFunction("__shortlistTabMessage", (id, message) => context.pages()[id].evaluate((message) => window.__shortlistDispatchMessage(message), message));
   await context.exposeFunction("__shortlistOpen", async (url) => { const page = await context.newPage(); await page.goto(url); });
-  await context.addInitScript(() => {
+  await context.addInitScript((manifest) => {
     const storageListeners = [];
     const messageListeners = [];
     window.__shortlistDispatchStorage = (changes) => storageListeners.forEach((fn) => fn(changes, "local"));
@@ -43,6 +43,7 @@ async function attachHarness(context) {
     window.chrome = {
       runtime: {
         id: "shortlist-test",
+        getManifest: () => manifest,
         getURL: (file) => `https://shortlist.test/${file}`,
         sendMessage: (message) => window.__shortlistSend(message),
         onMessage: { addListener: (fn) => messageListeners.push(fn) },
@@ -54,7 +55,7 @@ async function attachHarness(context) {
         create: ({ url }) => window.__shortlistOpen(url),
       },
     };
-  });
+  }, JSON.parse(fs.readFileSync(path.join(extensionPath, "manifest.json"), "utf8")));
   await context.route("https://shortlist.test/**", (route) => {
     const file = new URL(route.request().url()).pathname.slice(1);
     if (!["core.js", "photos-adapter.js", "content.js", "dock.css", "popup.html", "popup.js", "popup.css"].includes(file)) return route.abort();
