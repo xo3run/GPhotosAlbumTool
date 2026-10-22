@@ -1,0 +1,47 @@
+Photo Shortlist — unpacked Chrome/Edge extension (preview)
+
+1. Unzip this archive into a permanent local folder.
+2. Open chrome://extensions (or edge://extensions).
+3. Turn on Developer mode and click Load unpacked.
+4. Choose this folder, containing manifest.json.
+5. Refresh Google Photos and open an album or shared album, then a photo.
+
+Click Keep photo or press Alt+Shift+S for photos you want. Return to the album grid,
+clear any existing native selection, and click Select kept photos.
+Check the result, then use Google Photos' own Add to album control.
+
+No API keys, sign-in setup, or npm install is needed to use the extension.
+Keep this folder in place. Reload the extension and refresh Photos after updates.
+To update, extract the new ZIP over the files in your existing extension folder.
+The popup displays the loaded version; shared-album support starts in v0.1.1.
+
+v0.1.6 brings each target into view, reacquires controls after grid redraws, and
+waits up to three seconds for the same photo to confirm without clicking twice.
+If selection stops, clear Google Photos' partial selection before retrying.
+Your saved shortlist remains. Check page layout includes the last attempt's
+stage and target state without photo IDs, links, captions, or images.
+
+v0.1.5 avoids false existing-selection warnings from hidden or offscreen native
+toolbars and unrelated checked settings. Genuine photo selections still block.
+The layout report includes nativeSelection counts to identify the blocking signal.
+
+v0.1.4 keeps the Keep photo button in place when showing keep/unkeep feedback.
+The panel starts at bottom-left to leave Google Photos' information sidebar clear.
+Change Panel position under How it works to use bottom-right; your choice is saved.
+
+v0.1.3 uses Chrome's shortcut system; K keeps Google Photos' backward navigation.
+To change or remove the keep shortcut, open chrome://extensions/shortcuts
+(or edge://extensions/shortcuts) and edit Photo Shortlist's keep command.
+The toolbar shows your actual binding. Enable keyboard shortcut under How it works.
+
+v0.1.2 handles recognized controls hidden until hover and relative photo links.
+If selection still fails, hover over a thumbnail briefly, click Check page layout
+in the error message, then Copy layout report. Share that report with the developer.
+The report contains layout metadata, not photo URLs, IDs, captions, or images.
+
+Preview limitation: live Google Photos compatibility still needs verification.
+The automated tests use simulated Photos pages; layout changes may need fixes.
+Nothing is uploaded, deleted, or added to an album automatically.
+
+Created by kutsin@gmail.com.
+Built with assistance from ChatGPT Codex.
