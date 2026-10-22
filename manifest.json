@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "GPhotos Album Selection",
+  "version": "1.0.0",
+  "description": "Select ranges or every Nth loaded photo, then use Google Photos to add the subset to another album.",
+  "permissions": ["activeTab", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open album selection tools"
+  }
+}
