@@ -1,7 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Photo Shortlist",
-  "version": "0.1.3",
+  "version": "0.1.4",
+  "author": "kutsin@gmail.com",
   "description": "Keep photos as you review an album full-size, then select your shortlist in Google Photos.",
   "minimum_chrome_version": "120",
   "permissions": ["storage"],

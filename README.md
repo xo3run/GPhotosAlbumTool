@@ -8,7 +8,7 @@ A small Chrome/Edge extension for reviewing Google Photos albums at full size. K
 
 No Google Cloud project, API key, sign-in flow, or build step is needed.
 
-1. Download [photo-shortlist-0.1.3.zip](downloads/photo-shortlist-0.1.3.zip?raw=true) and unzip it into a permanent local folder. You can also use the repository’s `extension/` folder directly.
+1. Download [photo-shortlist-0.1.4.zip](downloads/photo-shortlist-0.1.4.zip?raw=true) and unzip it into a permanent local folder. You can also use the repository’s `extension/` folder directly.
 2. Open `chrome://extensions` (or `edge://extensions`) and enable **Developer mode**.
 3. Click **Load unpacked** and select the folder containing `manifest.json`.
 4. Refresh any already-open Google Photos tabs. Open one of your albums.
@@ -34,6 +34,8 @@ The report contains counts, recognized HTML roles, allowlisted attribute names, 
 The original photos remain in their source album. The extension never clicks Add to album, creates an album, uploads a photo, or deletes anything from Google Photos.
 
 **Review shortlist** lets you reopen or remove kept photos. **Clear** affects only the saved shortlist and provides **Undo clear**; it does not clear Google Photos’ native selection. After adding to your destination, clear the shortlist yourself if you are finished with it.
+
+The panel starts in the **bottom-left** corner to leave Google Photos’ information sidebar clear. Change **Panel position** under **How it works** to use the bottom-right instead; your choice is saved for this browser. Keep/unkeep confirmations use the existing hint area so the button stays in place for a second click.
 
 The keep shortcut is active only in the full-size album viewer while the panel is expanded. It is ignored while editing a caption, comment, or other text field, and works when a native navigation button retains focus. You can disable the keep action under **How it works**. Collapse the panel to keep it out of the way; reopen it using its compact button or the extension’s toolbar popup.
 
@@ -71,3 +73,7 @@ Browser tests use system Chromium when available at `/usr/bin/chromium`; otherwi
 The cloud browser blocks unpacked extension installation through a managed policy. The browser suite therefore runs the **actual packaged content scripts** on intercepted, simulated Photos pages, with a Chrome API bridge and the **actual storage worker code** in a VM. The fixtures exercise full-size navigation, native K navigation, simulated browser-command delivery, remapped/unassigned shortcuts, shared-album deep links with synthetic access keys, persistence, multiple tabs/accounts/albums, virtualized grids, hover-hidden controls, relative links, diagnostic privacy, cancellation, unsupported controls, partial selection, and light/dark accessible UI. They do **not** validate Chrome’s extension loader, actual browser shortcut registration, content-script isolated worlds, or the live Google Photos DOM. No tests access a real photo account.
 
 See [UI decisions](docs/UI.md), the [manual integration checklist](docs/MANUAL_TEST.md), and the [original project brief](docs/PROJECT_BRIEF.md).
+
+## Credits
+
+Created by kutsin@gmail.com. Built with assistance from ChatGPT Codex.

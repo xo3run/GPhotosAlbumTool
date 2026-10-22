@@ -37,6 +37,78 @@ const navigate = (page, pathname) => page.evaluate((pathname) => window.fixture.
 const count = (page) => page.locator("#photo-shortlist-root #count");
 const feedback = (page) => page.locator("#photo-shortlist-root #feedback");
 
+for (const { width, position } of [{ width: 1280, position: "bottom-left" }, { width: 390, position: "bottom-right" }]) {
+test(`keeping and unkeeping preserve the button position without moving the mouse (${width}px, ${position})`, async ({ browserSession: { page } }) => {
+  await page.setViewportSize({ width, height: 844 });
+  if (position === "bottom-right") {
+    await page.locator("#photo-shortlist-root summary").click();
+    await page.getByLabel("Panel position", { exact: true }).selectOption(position);
+    await expect(page.locator("#photo-shortlist-root")).toHaveCSS("right", "20px");
+    await page.locator("#photo-shortlist-root summary").click();
+  }
+  await navigate(page, "/album/album-a/photo/photo-001");
+  const keep = page.getByRole("button", { name: "Keep photo", exact: false });
+  await expect(keep).toBeEnabled();
+  await expect(keep).toHaveAttribute("aria-keyshortcuts", "Alt+Shift+S");
+  const before = await keep.boundingBox();
+  // Click near the lower edge, where a newly inserted status card used to
+  // move the button away from the pointer.
+  await page.mouse.click(before.x + before.width / 2, before.y + before.height - 5);
+  await expect(keep).toHaveAttribute("aria-pressed", "true");
+  await expect(count(page)).toHaveText("1");
+  await expect(page.locator("#photo-shortlist-root #hint")).toHaveText("Kept. Your shortlist is saved.");
+  expect(await keep.boundingBox()).toEqual(before);
+  await page.mouse.down();
+  await page.mouse.up();
+  await expect(keep).toHaveAttribute("aria-pressed", "false");
+  await expect(count(page)).toHaveText("0");
+  await expect(page.locator("#photo-shortlist-root #hint")).toHaveText("Removed from your shortlist.");
+  expect(await keep.boundingBox()).toEqual(before);
+  await page.keyboard.press("ArrowRight");
+  await expect(page).toHaveURL(/\/photo\/photo-002$/);
+  await expect(keep).toHaveAttribute("aria-pressed", "false");
+  expect(await keep.boundingBox()).toEqual(before);
+});
+}
+
+test("panel defaults to bottom-left and remembers a bottom-right preference across tabs, reloads and collapse", async ({ browserSession: { page, context } }) => {
+  const dock = page.locator("#photo-shortlist-root");
+  const expectCorner = async (target, side) => {
+    await expect.poll(async () => {
+      const bounds = await target.locator("#photo-shortlist-root").boundingBox();
+      const viewport = target.viewportSize();
+      return bounds && { bottom: Math.round(viewport.height - bounds.y - bounds.height), side: Math.round(side === "left" ? bounds.x : viewport.width - bounds.x - bounds.width) };
+    }).toEqual({ bottom: 20, side: 20 });
+  };
+  await expectCorner(page, "left");
+  await page.locator("#photo-shortlist-root summary").click();
+  await page.getByLabel("Panel position", { exact: true }).selectOption("bottom-right");
+  await expectCorner(page, "right");
+  const second = await context.newPage();
+  await second.goto("https://photos.google.com/album/album-a/photo/photo-001");
+  await expect(second.locator("#photo-shortlist-root #keep")).toBeEnabled();
+  await expectCorner(second, "right");
+  await page.reload();
+  await expect(dock).toBeVisible();
+  await expectCorner(page, "right");
+  await page.getByRole("button", { name: "Collapse shortlist", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Expand shortlist, 0 photos kept" })).toBeVisible();
+  await expectCorner(page, "right");
+  await page.getByRole("button", { name: "Expand shortlist, 0 photos kept" }).click();
+  await page.locator("#photo-shortlist-root summary").click();
+  await page.getByLabel("Panel position", { exact: true }).selectOption("bottom-left");
+  await expectCorner(page, "left");
+  await expect.poll(() => second.locator("#photo-shortlist-root").evaluate((host) => host.style.left)).toBe("20px");
+  await expectCorner(second, "left");
+  // Updating other preferences preserves the corner; invalid updates are ignored.
+  const response = await page.evaluate(async () => {
+    await chrome.runtime.sendMessage({ type: "SHORTLIST_STORE_SETTINGS_SET", settings: { shortcutEnabled: false, collapsed: true } });
+    await chrome.runtime.sendMessage({ type: "SHORTLIST_STORE_SETTINGS_SET", settings: { position: "invalid" } });
+    return chrome.runtime.sendMessage({ type: "SHORTLIST_STORE_SETTINGS_GET" });
+  });
+  expect(response.data).toEqual({ shortcutEnabled: false, collapsed: true, position: "bottom-left" });
+});
+
 test("keeps only explicit picks; keyboard does not interfere with typing and can be disabled", async ({ browserSession: { page } }) => {
   await navigate(page, "/album/album-a/photo/photo-001");
   const keep = page.getByRole("button", { name: "Keep photo", exact: false });
@@ -390,7 +462,15 @@ test("dock and popup pass automated accessibility checks; capture light and dark
   await expect(page.getByRole("button", { name: "Keep photo", exact: false })).toHaveAttribute("aria-pressed", "true");
   await audit(page, "#photo-shortlist-root");
   await page.screenshot({ path: testInfo.outputPath("viewer.png") });
+  await page.locator("#photo-shortlist-root summary").click();
+  await expect(page.getByLabel("Panel position", { exact: true })).toHaveValue("bottom-left");
+  await expect(page.getByText("Created by kutsin@gmail.com", { exact: false })).toBeVisible();
+  await audit(page, "#photo-shortlist-root");
+  await page.screenshot({ path: testInfo.outputPath("settings.png") });
   await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await audit(page, "#photo-shortlist-root");
+  await page.screenshot({ path: testInfo.outputPath("settings-dark.png") });
+  await page.locator("#photo-shortlist-root summary").click();
   await audit(page, "#photo-shortlist-root");
   await page.screenshot({ path: testInfo.outputPath("viewer-dark.png") });
   await page.setViewportSize({ width: 390, height: 844 });
@@ -401,7 +481,10 @@ test("dock and popup pass automated accessibility checks; capture light and dark
   const popup = await context.newPage();
   await popup.goto("https://shortlist.test/popup.html");
   await expect(popup.getByRole("heading", { name: "Find the keepers." })).toBeVisible();
+  await expect(popup.getByText("Created by kutsin@gmail.com", { exact: false })).toBeVisible();
+  await expect(popup.getByText("Built with assistance from ChatGPT Codex.", { exact: false })).toBeVisible();
   await audit(popup);
-  await popup.setViewportSize({ width: 340, height: 540 });
+  await popup.setViewportSize({ width: 340, height: 580 });
+  expect(await popup.locator("main").evaluate((main) => main.getBoundingClientRect().bottom)).toBeLessThanOrEqual(600);
   await popup.screenshot({ path: testInfo.outputPath("popup.png") });
 });

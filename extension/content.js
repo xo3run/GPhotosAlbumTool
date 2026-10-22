@@ -5,15 +5,15 @@
   const Photos = globalThis.PhotoShortlistAdapter;
   const Diagnostics = globalThis.PhotoShortlistDiagnostics;
   const state = {
-    route: null, album: null, settings: { shortcutEnabled: true, collapsed: false },
-    saving: false, running: false, controller: null, undo: null, feedback: "", feedbackKind: "info", revision: 0,
+    route: null, album: null, settings: { shortcutEnabled: true, collapsed: false, position: "bottom-left" },
+    saving: false, running: false, controller: null, undo: null, feedback: "", feedbackKind: "info", feedbackInline: false, revision: 0,
     shortcut: null,
   };
   const host = document.createElement("div");
   host.id = "photo-shortlist-root";
   host.hidden = true;
   // Inline host properties prevent a page stylesheet from accidentally exposing an inactive dock.
-  Object.assign(host.style, { position: "fixed", right: "20px", bottom: "20px", zIndex: "2147483000", colorScheme: "light dark" });
+  Object.assign(host.style, { position: "fixed", left: "20px", bottom: "20px", zIndex: "2147483000", colorScheme: "light dark" });
   const shadow = host.attachShadow({ mode: "open" });
   shadow.innerHTML = `
     <link rel="stylesheet" href="${chrome.runtime.getURL("dock.css")}">
@@ -25,7 +25,7 @@
       <div id="body">
         <div class="album-line"><span id="album-title">This album</span><span id="mode" class="tag">Album</span></div>
         <div class="count-line"><strong id="count">0</strong><span id="count-label">photos kept</span><span class="saved"><span aria-hidden="true">●</span> Saved locally</span></div>
-        <p id="hint">Open a photo to start your shortlist.</p>
+        <p id="hint" role="status" aria-live="polite" aria-atomic="true">Open a photo to start your shortlist.</p>
         <button id="keep" class="primary" type="button" aria-pressed="false"><span id="keep-icon" aria-hidden="true">＋</span><span>Keep photo</span><kbd id="key-hint" hidden></kbd></button>
         <button id="apply" class="primary" type="button">Select kept photos <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7M7 7h10v10"/></svg></button>
         <div id="progress-area" hidden><label id="progress-label" for="progress">Selecting photos…</label><progress id="progress" max="1" value="0"></progress><button id="cancel" class="secondary" type="button">Stop selecting</button></div>
@@ -33,7 +33,7 @@
         <div id="review" hidden><ol id="kept-list" aria-label="Kept photos"></ol><p id="review-note" class="small" hidden></p></div>
         <div id="feedback-wrap" hidden><p id="feedback" role="status" aria-live="polite" aria-atomic="true"></p><button id="undo" class="text-button" type="button" hidden>Undo clear</button><button id="diagnose" class="text-button" type="button" hidden>Check page layout</button></div>
         <section id="diagnostic-panel" aria-label="Layout diagnostics" hidden><label for="diagnostic-report">Layout report</label><p class="small">Layout details only: no photo links, IDs, captions, or images. Nothing is sent automatically.</p><textarea id="diagnostic-report" aria-label="Layout report" rows="7" readonly spellcheck="false"></textarea><button id="copy-diagnostic" class="secondary" type="button">Copy layout report</button><p id="diagnostic-status" class="small" role="status" aria-live="polite"></p></section>
-        <details id="help"><summary>How it works</summary><ol><li>Open a photo in this album.</li><li>Use <strong>Keep photo</strong> as you browse.</li><li>Return to the grid and select kept photos.</li><li>Use Google Photos’ <strong>Add to album</strong>.</li></ol><label class="setting"><input id="shortcut" type="checkbox" checked> Enable keyboard shortcut</label><p class="small">Default: Alt+Shift+S. Change or remove the binding at chrome://extensions/shortcuts. Google Photos keeps its own navigation keys.</p><p class="small">Your shortlist stays in this browser. Nothing is added to an album automatically. English selection labels and semantic checkboxes are supported.</p></details>
+        <details id="help"><summary>How it works</summary><ol><li>Open a photo in this album.</li><li>Use <strong>Keep photo</strong> as you browse.</li><li>Return to the grid and select kept photos.</li><li>Use Google Photos’ <strong>Add to album</strong>.</li></ol><label class="setting"><input id="shortcut" type="checkbox" checked> Enable keyboard shortcut</label><p class="small">Default: Alt+Shift+S. Change or remove the binding at chrome://extensions/shortcuts. Google Photos keeps its own navigation keys.</p><div class="setting position-setting"><label for="position">Panel position</label><select id="position"><option value="bottom-left">Bottom-left</option><option value="bottom-right">Bottom-right</option></select></div><p class="small">Your shortlist stays in this browser. Nothing is added to an album automatically. English selection labels and semantic checkboxes are supported.</p><p class="small credits">Created by kutsin@gmail.com<br>Built with assistance from ChatGPT Codex.</p></details>
       </div>
       <button id="expand" type="button" hidden><span class="brand-icon" aria-hidden="true">▧</span><span id="compact-count">0 kept</span><span aria-hidden="true">⌃</span></button>
     </section>`;
@@ -51,6 +51,7 @@
   function announce(message, kind = "info") {
     state.feedback = message;
     state.feedbackKind = kind;
+    state.feedbackInline = false;
     render();
   }
 
@@ -62,7 +63,12 @@
   }
 
   async function loadShortcut() {
-    state.shortcut = (await request("SHORTCUT_GET")).shortcut;
+    const shortcut = (await request("SHORTCUT_GET")).shortcut;
+    if (state.shortcut !== shortcut && state.feedbackInline) {
+      state.feedback = "";
+      state.feedbackInline = false;
+    }
+    state.shortcut = shortcut;
     render();
   }
 
@@ -75,6 +81,8 @@
   function render() {
     host.hidden = !state.route?.albumId;
     host.style.display = host.hidden ? "none" : "block";
+    host.style.left = state.settings.position === "bottom-right" ? "auto" : "20px";
+    host.style.right = state.settings.position === "bottom-right" ? "20px" : "auto";
     if (host.hidden) return;
     const isViewer = state.route.kind === "viewer";
     const busy = state.running || state.saving;
@@ -89,7 +97,8 @@
     $("mode").textContent = isViewer ? "Photo review" : "Album";
     $("count").textContent = count();
     $("count-label").textContent = count() === 1 ? "photo kept" : "photos kept";
-    $("hint").textContent = isViewer
+    const inlineFeedback = isViewer && state.feedbackInline;
+    $("hint").textContent = inlineFeedback ? state.feedback : isViewer
       ? (state.settings.shortcutEnabled && state.shortcut ? `${state.shortcut} to keep · Arrow keys to browse` : state.settings.shortcutEnabled && state.shortcut === "" ? "Assign a shortcut at chrome://extensions/shortcuts." : "Keep the photos you want as you browse.")
       : count() ? "Ready? Select your shortlist, then add it to an album." : "Open a photo to start your shortlist.";
     $("keep").hidden = !isViewer || state.running;
@@ -110,8 +119,10 @@
     $("clear").disabled = busy || !count();
     $("review-toggle").disabled = busy || !count();
     $("shortcut").checked = state.settings.shortcutEnabled;
-    $("feedback-wrap").hidden = !state.feedback;
-    $("feedback").textContent = state.feedback;
+    $("position").value = state.settings.position;
+    $("position").disabled = state.running;
+    $("feedback-wrap").hidden = !state.feedback || inlineFeedback;
+    $("feedback").textContent = inlineFeedback ? "" : state.feedback;
     $("feedback-wrap").dataset.kind = state.feedbackKind;
     $("undo").hidden = !state.undo;
     $("undo").disabled = busy;
@@ -164,7 +175,7 @@
     renderReview();
   }
 
-  async function mutate(type, extra, success) {
+  async function mutate(type, extra, success, inline = false) {
     if (!state.route?.albumId || state.saving || state.running) return false;
     const route = state.route;
     state.saving = true;
@@ -175,6 +186,7 @@
       state.album = album;
       state.feedback = success;
       state.feedbackKind = "info";
+      state.feedbackInline = inline;
       renderReview();
       return true;
     } catch (error) {
@@ -188,7 +200,7 @@
     if (state.route?.kind !== "viewer" || !state.album || state.saving || state.running) return;
     const id = state.route.photoId;
     const kept = state.album.photos.some((photo) => photo.id === id);
-    await mutate("SET_PHOTO", { photo: { id, label: Photos.describePhoto() }, kept: !kept }, kept ? "Removed from your shortlist." : "Kept. Your shortlist is saved.");
+    await mutate("SET_PHOTO", { photo: { id, label: Photos.describePhoto() }, kept: !kept }, kept ? "Removed from your shortlist." : "Kept. Your shortlist is saved.", true);
   }
 
   async function setSettings(settings) {
@@ -264,6 +276,7 @@
   $("collapse").addEventListener("click", async () => { await setSettings({ collapsed: true }); $("expand").focus(); });
   $("expand").addEventListener("click", async () => { await setSettings({ collapsed: false }); $("collapse").focus(); });
   $("shortcut").addEventListener("change", () => setSettings({ shortcutEnabled: $("shortcut").checked }));
+  $("position").addEventListener("change", () => setSettings({ position: $("position").value }));
   $("review-toggle").addEventListener("click", () => {
     const open = $("review").hidden;
     $("review").hidden = !open;
@@ -295,6 +308,7 @@
     const changed = !sameAlbum(state.route, next);
     state.route = next;
     state.feedback = "";
+    state.feedbackInline = false;
     $("diagnostic-panel").hidden = true;
     if (changed) {
       state.album = null;

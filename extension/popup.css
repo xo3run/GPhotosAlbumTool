@@ -16,6 +16,7 @@ button:focus-visible { outline: 3px solid #6b9dff; outline-offset: 3px; }
 ol { padding-left: 18px; margin: 22px 0; color: #536762; font-size: 12px; line-height: 1.8; }
 kbd { font: inherit; border: 1px solid #bbcfc4; border-radius: 4px; padding: 0 4px; }
 footer { border-top: 1px solid #dce6e2; padding-top: 13px; font-size: 10px; color: #536762; line-height: 1.8; }
+footer .credits { margin: 10px 0 0; color: inherit; }
 @media (prefers-color-scheme: dark) {
   :root { color: #edf5f0; background: #202927; }
   p, ol, footer { color: #b4c8be; }

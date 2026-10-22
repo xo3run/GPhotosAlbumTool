@@ -2,8 +2,8 @@
 
 The workflow is deliberately contextual: Google Photos continues to display and navigate photos. Photo Shortlist adds one toggle during review and one selection action in the album grid. The final destination action stays in Google Photos.
 
-- **Small, collapsible panel.** A 336 px panel in the lower-right corner avoids taking over the page. It collapses to a count and can be reopened from the toolbar popup. The panel has its own scroll region on short screens.
-- **Stable toggle semantics.** Keep photo retains its label and uses `aria-pressed`, a checkmark, and a color change. A kept state is not communicated by color alone.
+- **Small, collapsible panel.** A 336 px panel defaults to the bottom-left corner to leave Google Photos’ right-side information panel clear. A native select under How it works offers bottom-left and bottom-right, saved per browser and shared across tabs. It collapses to a count and can be reopened from the toolbar popup. The panel has its own scroll region on short screens.
+- **Stable toggle semantics.** Keep photo retains its label and uses `aria-pressed`, a checkmark, and a color change. A kept state is not communicated by color alone. Keep/unkeep confirmations replace the hint in its reserved two-line area, announced through a polite live region; they do not insert a new card beneath the button or move it away from the pointer.
 - **Visible progress and honest feedback.** The panel shows a saved count, native-selection progress, a Stop control, and distinct complete/partial/error messages. A dispatched click does not count as a confirmed selection.
 - **Keyboard and focus.** Native buttons, links, a disclosure, and checkbox preferences support keyboard operation. Focus rings are visible. A browser command (default Alt+Shift+S) avoids competing with Google Photos’ K navigation. It can be remapped through Chrome’s shortcut settings, is ignored while editing text, and does not keep photos when the panel is collapsed. The panel displays the actual binding and a valid `aria-keyshortcuts` value where its key name can be normalized. Native navigation buttons retaining focus do not block the keep command.
 - **Readable, restrained styling.** System fonts, neutral surfaces, one green accent, light/dark themes, and text labels accompany icons. No animations are required; reduced-motion and forced-colors preferences are respected.
@@ -11,6 +11,7 @@ The workflow is deliberately contextual: Google Photos continues to display and 
 - **Isolated presentation.** A shadow root prevents most styling collisions with Google Photos. UI strings read from the page are inserted using `textContent`; photo links are reconstructed from validated identifiers.
 - **Minimal access.** A single-site content script and local storage; no all-sites permission, tabs permission, cookies, private Google endpoints, remote scripts, or photo uploads.
 - **Actionable compatibility errors.** An error offers a read-only layout report with counts, allowlisted structural metadata, and a sanitized hover snapshot. Users explicitly copy it; nothing is transmitted. Raw HTML, labels, photo identifiers, URLs, and arbitrary attribute values are excluded from the report.
+- **Credits.** The popup footer and How it works disclosure credit kutsin@gmail.com and assistance from ChatGPT Codex.
 
 Automated axe checks cover WCAG A/AA rules for the dock and popup. Fixture screenshots cover album, full-size review, dark theme, and narrow layout. Keyboard behavior is exercised separately. This is useful automated coverage, not a claim of complete accessibility conformance or real Photos compatibility.
 

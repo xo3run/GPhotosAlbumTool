@@ -31,13 +31,14 @@ async function handle(message) {
   }
   if (message.type === "SHORTLIST_STORE_SETTINGS_GET") {
     const stored = (await chrome.storage.local.get(Core.SETTINGS_KEY))[Core.SETTINGS_KEY];
-    return { shortcutEnabled: stored?.shortcutEnabled !== false, collapsed: stored?.collapsed === true };
+    return { shortcutEnabled: stored?.shortcutEnabled !== false, collapsed: stored?.collapsed === true, position: stored?.position === "bottom-right" ? "bottom-right" : "bottom-left" };
   }
   if (message.type === "SHORTLIST_STORE_SETTINGS_SET") {
     const current = await handle({ type: "SHORTLIST_STORE_SETTINGS_GET" });
     for (const key of ["shortcutEnabled", "collapsed"]) {
       if (typeof message.settings?.[key] === "boolean") current[key] = message.settings[key];
     }
+    if (["bottom-left", "bottom-right"].includes(message.settings?.position)) current.position = message.settings.position;
     await chrome.storage.local.set({ [Core.SETTINGS_KEY]: current });
     return current;
   }
