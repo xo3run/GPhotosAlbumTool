@@ -15,6 +15,12 @@ Keep this folder in place. Reload the extension and refresh Photos after updates
 To update, extract the new ZIP over the files in your existing extension folder.
 The popup displays the loaded version; shared-album support starts in v0.1.1.
 
+v0.1.6 brings each target into view, reacquires controls after grid redraws, and
+waits up to three seconds for the same photo to confirm without clicking twice.
+If selection stops, clear Google Photos' partial selection before retrying.
+Your saved shortlist remains. Check page layout includes the last attempt's
+stage and target state without photo IDs, links, captions, or images.
+
 v0.1.5 avoids false existing-selection warnings from hidden or offscreen native
 toolbars and unrelated checked settings. Genuine photo selections still block.
 The layout report includes nativeSelection counts to identify the blocking signal.

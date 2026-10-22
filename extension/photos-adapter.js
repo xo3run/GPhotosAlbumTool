@@ -3,6 +3,8 @@
   "use strict";
   const Core = globalThis.PhotoShortlist;
   const CONTROLS = 'input[type="checkbox"], [role="checkbox"], button[aria-label], [role="button"][aria-label]';
+  let lastAttempt = null;
+  const itemState = (item) => !item ? "unavailable" : selectionState(item.control) === true ? "selected" : selectionState(item.control) === false ? "unselected" : "unavailable";
   const sleep = (ms, signal) => new Promise((resolve, reject) => {
     if (signal?.aborted) return reject(new DOMException("Stopped", "AbortError"));
     const abort = () => { clearTimeout(timer); reject(new DOMException("Stopped", "AbortError")); };
@@ -123,10 +125,13 @@
     let initialScroll = 0;
     let bottomPasses = 0;
     let scanned = 0;
+    // Keep only safe counts and enums for an optional layout report. No IDs,
+    // links, labels, or page text are retained in the attempt diagnostics.
+    lastAttempt = { status: "running", stage: "checking", total: wanted.size, confirmed: 0, targetState: "none", waitedMs: 0 };
     const guard = () => {
       if (signal?.aborted) throw new DOMException("Stopped", "AbortError");
       if (location.pathname + location.search !== initialPath || Core.parseRoute(location.href)?.kind !== "album") throw new DOMException("The page changed", "AbortError");
-      if (Date.now() - started > 180000) throw new Error("The scan timed out. Some photos may already be selected; retry to continue.");
+      if (Date.now() - started > 180000) throw new Error("The scan timed out. Clear Google Photos’ current selection before retrying; your shortlist is saved.");
     };
     try {
       guard();
@@ -141,24 +146,49 @@
       await sleep(250, signal);
       while (confirmed.size < wanted.size) {
         guard();
+        lastAttempt.stage = "scanning";
         items = gridItems(route);
-        for (const [id, item] of items) {
+        for (const id of items.keys()) {
           if (!wanted.has(id) || confirmed.has(id)) continue;
           guard();
+          // Each click or scroll can replace the grid. Never reuse a control
+          // from an earlier snapshot, even if its old attributes look valid.
+          let item = gridItems(route).get(id);
+          if (!item) continue;
+          lastAttempt.stage = "preparing";
+          lastAttempt.targetState = itemState(item);
+          lastAttempt.waitedMs = 0;
+          (item.link || item.card).scrollIntoView({ block: "nearest", inline: "nearest", behavior: "instant" });
+          await sleep(100, signal);
+          guard();
+          item = gridItems(route).get(id);
+          lastAttempt.targetState = itemState(item);
+          if (!item) continue;
           if (selectionState(item.control) === false) {
+            const targetScroll = scroller.scrollTop;
             item.control.click();
             let selected = false;
-            for (let tries = 0; tries < 12; tries++) {
+            lastAttempt.stage = "confirming";
+            const confirmationStarted = Date.now();
+            // A native selection count can update before its photo checkbox.
+            // Wait for that same photo's state; never infer it from a total or
+            // click again while the first click's outcome is uncertain.
+            for (let tries = 0; tries < 40; tries++) {
               await sleep(75, signal);
               guard();
               const current = gridItems(route).get(id);
+              lastAttempt.targetState = itemState(current);
+              lastAttempt.waitedMs = Date.now() - confirmationStarted;
               if (current && selectionState(current.control) === true) { selected = true; break; }
+              if (!current && Math.abs(scroller.scrollTop - targetScroll) > 1) scroller.scrollTo({ top: targetScroll, behavior: "instant" });
             }
-            if (!selected) throw new Error("Google Photos did not confirm a selection. Stopped to avoid clicking the wrong control. This layout may need an extension update.");
+            if (!selected) throw new Error("Google Photos did not confirm a selection. Stopped without clicking it again. Clear Google Photos’ current selection before retrying; your shortlist is saved. Use Check page layout to report this layout.");
           } else if (selectionState(item.control) !== true) {
             throw new Error("A photo’s selection state could not be read. Stopped without clicking an unknown control.");
           }
           confirmed.add(id);
+          lastAttempt.confirmed = confirmed.size;
+          lastAttempt.targetState = "selected";
           onProgress({ confirmed: confirmed.size, total: wanted.size, scanned });
         }
         if (confirmed.size === wanted.size) break;
@@ -176,8 +206,11 @@
         } else bottomPasses = 0;
         onProgress({ confirmed: confirmed.size, total: wanted.size, scanned });
       }
+      lastAttempt.status = "complete";
+      lastAttempt.stage = "finished";
       return { confirmed: confirmed.size, total: wanted.size, missing: wanted.size - confirmed.size };
     } catch (error) {
+      lastAttempt.status = error.name === "AbortError" ? "stopped" : "error";
       error.confirmed = confirmed.size;
       error.total = wanted.size;
       throw error;
@@ -187,5 +220,5 @@
     }
   }
 
-  globalThis.PhotoShortlistAdapter = Object.freeze({ describePhoto, albumTitle, gridItems, selectionState, selectionIndicators, selectKept });
+  globalThis.PhotoShortlistAdapter = Object.freeze({ describePhoto, albumTitle, gridItems, selectionState, selectionIndicators, selectionAttempt: () => lastAttempt ? { ...lastAttempt } : null, selectKept });
 })();

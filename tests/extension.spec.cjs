@@ -270,6 +270,72 @@ test("selects exactly the shortlist across a virtualized album; adding to an alb
   await expect(count(page)).toHaveText("3");
 });
 
+test("waits for a delayed sixth checkbox confirmation without clicking it twice", async ({ browserSession: { page, seed } }) => {
+  const ids = Array.from({ length: 8 }, (_, i) => photoId(i + 1));
+  await page.evaluate(() => window.fixture.configure({ delayConfirmationId: "photo-006", confirmationDelayMs: 1600 }));
+  await seed(ids);
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("All 8 selected.");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual(ids);
+  expect(await page.evaluate(() => window.fixture.state.selectionClicks)).toEqual(ids);
+  expect(await page.evaluate(() => window.fixture.state.addCalls)).toBe(0);
+});
+
+test("reacquires every photo control when Google Photos redraws the grid after each selection", async ({ browserSession: { page, seed } }) => {
+  const ids = [photoId(1), photoId(3), photoId(5), photoId(8), photoId(12)];
+  await page.evaluate(() => window.fixture.configure({ redrawOnSelect: true }));
+  await seed(ids);
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("All 5 selected.");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual(ids);
+  expect(await page.evaluate(() => window.fixture.state.selectionClicks)).toEqual(ids);
+});
+
+test("scrolls each target into view before clicking a virtualized grid control", async ({ browserSession: { page, seed } }) => {
+  const ids = [photoId(1), photoId(13), photoId(25), photoId(46), photoId(87)];
+  await page.evaluate(() => window.fixture.configure({
+    photos: Array.from({ length: 100 }, (_, i) => `photo-${String(i + 1).padStart(3, '0')}`),
+    virtual: true, refuseOffscreen: true,
+  }));
+  await seed(ids);
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("All 5 selected.", { timeout: 20000 });
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual(ids);
+  expect(await page.evaluate(() => window.fixture.state.selectionClicks)).toEqual(ids);
+});
+
+test("selects 87 kept photos once each while virtualized tiles redraw and require scrolling", async ({ browserSession: { page, seed } }) => {
+  const ids = Array.from({ length: 87 }, (_, i) => photoId(i + 1));
+  await page.evaluate(() => window.fixture.configure({
+    photos: Array.from({ length: 100 }, (_, i) => `photo-${String(i + 1).padStart(3, '0')}`),
+    virtual: true, redrawOnSelect: true, refuseOffscreen: true,
+  }));
+  await seed(ids);
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("All 87 selected.", { timeout: 25000 });
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual(ids);
+  expect(await page.evaluate(() => window.fixture.state.selectionClicks)).toEqual(ids);
+  await expect(count(page)).toHaveText("87");
+  expect(await page.evaluate(() => window.fixture.state.addCalls)).toBe(0);
+});
+
+test("a higher native selection count never replaces confirmation of the clicked photo", async ({ browserSession: { page, seed } }) => {
+  await page.evaluate(() => window.fixture.configure({ delayConfirmationId: "photo-001", confirmationDelayMs: 60000 }));
+  await seed([photoId(1), photoId(2)]);
+  await page.getByRole("button", { name: "Select kept photos", exact: false }).click();
+  await expect(feedback(page)).toContainText("did not confirm a selection");
+  expect(await page.evaluate(() => window.fixture.selected())).toEqual([photoId(1)]);
+  expect(await page.evaluate(() => window.fixture.state.selectionClicks)).toEqual([photoId(1)]);
+  await expect(count(page)).toHaveText("2");
+  await page.getByRole("button", { name: "Check page layout", exact: true }).click();
+  const reportText = await page.getByRole("textbox", { name: "Layout report", exact: true }).inputValue();
+  const attempt = JSON.parse(reportText).selectionAttempt;
+  expect(attempt).toMatchObject({ status: "error", stage: "confirming", total: 2, confirmed: 0, targetState: "unselected" });
+  expect(attempt.waitedMs).toBeGreaterThanOrEqual(3000);
+  expect(reportText).not.toContain("photo-001");
+  expect(reportText).not.toContain("photo-002");
+});
+
 test("supports tiles exposing stable data IDs without links", async ({ browserSession: { page, seed } }) => {
   await page.evaluate(() => window.fixture.configure({ noLinks: true }));
   await seed([photoId(2), photoId(5)]);

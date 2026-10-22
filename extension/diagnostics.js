@@ -122,6 +122,7 @@
         recognizedGridItems: items.size,
       },
       nativeSelection: Photos.selectionIndicators(items),
+      selectionAttempt: Photos.selectionAttempt(),
       controlSignatures: signatures(candidates),
       photoSamples: (matched.length ? matched : photoLinks).slice(0, 2).map(ancestry),
       hoveredPhoto: lastHover?.pagePath === location.pathname ? { ancestors: lastHover.ancestors, controls: lastHover.controls } : null,

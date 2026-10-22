@@ -5,7 +5,7 @@
 </style></head><body><script>
 (() => {
  const originalPhotos = Array.from({length:16},(_,i)=>`photo-${String(i+1).padStart(3,'0')}`);
- const state = { photos: originalPhotos, selected: new Set(), virtual: false, refuseClick: false, navigateOnClick: false, addCalls: 0, account: '', noLinks: false };
+ const state = { photos: originalPhotos, selected: new Set(), virtual: false, refuseClick: false, navigateOnClick: false, addCalls: 0, account: '', noLinks: false, redrawOnSelect: false, refuseOffscreen: false, delayConfirmationId: null, confirmationDelayMs: 0, selectionClicks: [] };
  const colors = [['#b2d9d7','#e9c7b2','#688e91','#375f64'],['#c6d9d3','#f6e1b6','#8da382','#466754'],['#becfdb','#f1cfb1','#8599ad','#495e7d'],['#d5cde0','#ecd4c3','#aa91a4','#645b79']];
  const landscapes = new Map();
  function art(i) {
@@ -47,10 +47,19 @@
      card.innerHTML=`<a ${state.noLinks?'':`href="${r.path}/photo/${id}${r.query}"`} aria-label="Open photo ${i+1}"><img src="${art(i)}" alt="Mountain lake, view ${i+1}"></a><button type="button" role="checkbox" aria-checked="${state.selected.has(id)}" aria-label="Select photo"></button>`;
      const anchor=card.querySelector('a');anchor.onclick=(e)=>{e.preventDefault();go(`${r.path}/photo/${id}${r.query}`);};
      card.querySelector('button').onclick=(e)=>{
+      // Real delegated page handlers do not receive clicks on stale nodes
+      // detached by a grid redraw.
+      if(!e.currentTarget.isConnected)return;
+      state.selectionClicks.push(id);
       if(state.navigateOnClick){go(`${r.path}/photo/${id}${r.query}`);return;}
       if(state.refuseClick)return;
+      if(state.refuseOffscreen){const rect=e.currentTarget.getBoundingClientRect(),viewport=main.getBoundingClientRect();if(rect.top<viewport.top||rect.bottom>viewport.bottom)return;}
       if(state.selected.has(id))state.selected.delete(id);else state.selected.add(id);
-      e.currentTarget.setAttribute('aria-checked',String(state.selected.has(id)));updateCount();
+      if(state.delayConfirmationId===id){
+       setTimeout(()=>{const current=document.querySelector(`article[data-id="${id}"] [role="checkbox"]`);if(current)current.setAttribute('aria-checked',String(state.selected.has(id)));},state.confirmationDelayMs);
+      }else e.currentTarget.setAttribute('aria-checked',String(state.selected.has(id)));
+      updateCount();
+      if(state.redrawOnSelect)draw();
      };
      grid.append(card);
     });tiles.append(grid);
