@@ -1,0 +1,18 @@
+Photo Shortlist — unpacked Chrome/Edge extension (preview)
+
+1. Unzip this archive into a permanent local folder.
+2. Open chrome://extensions (or edge://extensions).
+3. Turn on Developer mode and click Load unpacked.
+4. Choose this folder, containing manifest.json.
+5. Refresh Google Photos and open a regular album, then a photo.
+
+Click Keep photo or press K for photos you want. Return to the album grid,
+clear any existing native selection, and click Select kept photos.
+Check the result, then use Google Photos' own Add to album control.
+
+No API keys, sign-in setup, or npm install is needed to use the extension.
+Keep this folder in place. Reload the extension and refresh Photos after updates.
+
+Preview limitation: live Google Photos compatibility still needs verification.
+The automated tests use simulated Photos pages; layout changes may need fixes.
+Nothing is uploaded, deleted, or added to an album automatically.

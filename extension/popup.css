@@ -1,0 +1,26 @@
+:root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #182b2a; background: #fff; }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { width: 340px; margin: 0; font-size: 13px; line-height: 1.6; }
+main { padding: 22px; }
+header { display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 650; }
+.mark { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 9px; background: #116650; color: #fff; font-size: 24px; }
+.tag { margin-left: auto; font-size: 10px; font-weight: 500; padding: 2px 6px; background: #f3f7f5; border: 1px solid #dce6e2; border-radius: 5px; color: #536762; }
+h1 { margin: 23px 0 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.8px; font-weight: 650; }
+p { color: #536762; margin: 0 0 18px; }
+#context { background: #f3f7f5; border: 1px solid #dce6e2; border-radius: 9px; padding: 12px; margin-bottom: 12px; font-size: 12px; overflow-wrap: anywhere; }
+button { display: block; width: 100%; min-height: 44px; margin: 8px 0; padding: 10px; border: 1px solid #116650; border-radius: 9px; background: #116650; color: #fff; font: inherit; font-weight: 600; cursor: pointer; }
+#show:not([hidden]) + #open { background: transparent; color: #116650; border-color: #dce6e2; }
+button:hover { filter: brightness(.92); }
+button:focus-visible { outline: 3px solid #6b9dff; outline-offset: 3px; }
+ol { padding-left: 18px; margin: 22px 0; color: #536762; font-size: 12px; line-height: 1.8; }
+kbd { font: inherit; border: 1px solid #bbcfc4; border-radius: 4px; padding: 0 4px; }
+footer { border-top: 1px solid #dce6e2; padding-top: 13px; font-size: 10px; color: #536762; line-height: 1.8; }
+@media (prefers-color-scheme: dark) {
+  :root { color: #edf5f0; background: #202927; }
+  p, ol, footer { color: #b4c8be; }
+  .mark, button { background: #99dfbc; color: #123629; border-color: #99dfbc; }
+  .tag, #context { color: #b4c8be; background: #2b3832; border-color: #42554b; }
+  #show:not([hidden]) + #open { color: #99dfbc; border-color: #42554b; }
+  footer { border-color: #42554b; }
+}

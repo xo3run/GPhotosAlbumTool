@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Weekend in the mountains - Google Photos</title><style>
+*{box-sizing:border-box}body{margin:0;font:14px system-ui;color:#30383b;background:#fafbf9}button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible{outline:3px solid #5689d7;outline-offset:3px}header{height:76px;padding:0 32px;display:flex;align-items:center;gap:20px;background:white;border-bottom:1px solid #e9ece8}.wordmark{font-size:23px;font-weight:500;letter-spacing:-.6px}.wordmark span{color:#4285f4}.fixture-note{font-size:11px;color:#647369;margin-left:auto}.avatar{border-radius:50%;width:34px;height:34px;background:#deeadf;display:grid;place-items:center}h1{font-size:32px;letter-spacing:-1px;font-weight:500;margin:38px 0 5px}.subtitle{color:#6f7973;margin:0 0 32px}main{height:calc(100vh - 76px);overflow:auto;padding:0 44px 60px}.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}article{position:relative;height:188px;border-radius:7px;overflow:hidden;background:#e3eae3}article a{display:block;width:100%;height:100%}article img{display:block;width:100%;height:100%;object-fit:cover}article button[role=checkbox]{position:absolute;top:10px;left:10px;width:28px;height:28px;background:#fff;border:2px solid #ffffff;border-radius:50%;box-shadow:0 1px 6px #0005;color:#fff}article button[aria-checked=true]{background:#276dca}article button[aria-checked=true]::after{content:'✓'}#native-add{background:#eef2fb;color:#215abd;border:0;border-radius:7px;padding:10px 16px}#viewer{position:fixed;inset:0;background:#141917;color:#eef4ee;display:flex;align-items:center;justify-content:center}#viewer img{width:78vw;max-width:1100px;max-height:78vh;object-fit:contain;border-radius:3px}#viewer header{position:absolute;inset:0 0 auto;height:72px;background:transparent;border:0;color:#dde5df}#back{border:0;background:transparent;color:inherit;font-size:27px;min-width:44px;min-height:44px}#caption{position:absolute;bottom:28px;left:40px;font-size:12px;color:#b7c2b9}.arrow{position:absolute;top:45%;border:0;color:white;background:#ffffff18;border-radius:50%;width:46px;height:46px;font-size:24px}#prev{left:24px}#next{right:24px}#comment{position:absolute;bottom:24px;left:40px;width:220px;height:36px}
+</style></head><body><script>
+(() => {
+ const originalPhotos = Array.from({length:16},(_,i)=>`photo-${String(i+1).padStart(3,'0')}`);
+ const state = { photos: originalPhotos, selected: new Set(), virtual: false, refuseClick: false, navigateOnClick: false, addCalls: 0, account: '', noLinks: false };
+ const colors = [['#b2d9d7','#e9c7b2','#688e91','#375f64'],['#c6d9d3','#f6e1b6','#8da382','#466754'],['#becfdb','#f1cfb1','#8599ad','#495e7d'],['#d5cde0','#ecd4c3','#aa91a4','#645b79']];
+ const landscapes = new Map();
+ function art(i) {
+  if(landscapes.has(i%4))return landscapes.get(i%4);
+  const c=colors[i%4];
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600"><defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="${c[0]}"/><stop offset="1" stop-color="${c[1]}"/></linearGradient><linearGradient id="water" x2="0" y2="1"><stop stop-color="${c[0]}"/><stop offset="1" stop-color="${c[3]}"/></linearGradient></defs><path fill="url(#sky)" d="M0 0h900v600H0z"/><circle cx="655" cy="145" r="49" fill="#fff5d4" opacity=".85"/><path d="M0 330 150 120 300 320 455 80 680 335 800 170 900 310v290H0" fill="${c[2]}"/><path d="m340 232 115-152 119 135-119-57z" fill="#f4f2e8" opacity=".85"/><path d="M0 390 110 274 254 414 390 275 510 410 690 270 900 390v210H0" fill="${c[3]}"/><path d="M0 420q250-20 460 12t440-12v180H0" fill="url(#water)"/><path d="m620 460 140 2-90 2m-460 39 300 1-100 3m130 40 290 1-130 3" stroke="#e8ede3" opacity=".4" stroke-width="2"/><path d="m0 500 100 5 140 95H0m900-120-80 30-90 90h170" fill="${c[3]}"/></svg>`;
+  const url='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);landscapes.set(i%4,url);return url;
+ }
+ function route(){const match=location.pathname.match(/^(\/u\/\d+)?\/album\/([^/]+)(?:\/photo\/([^/]+))?$/);return match?{prefix:match[1]||'',album:match[2],photo:match[3]}:null;}
+ function go(path){history.pushState({},'',path);render();}
+ function updateCount(){const e=document.getElementById('native-count');if(e)e.textContent=state.selected.size?`${state.selected.size} selected`:'';const b=document.getElementById('native-add');if(b)b.hidden=!state.selected.size;}
+ function render(){
+  const r=route();
+  document.body.replaceChildren();
+  // Preserve the extension root when simulating a SPA transition.
+  if(window.savedDock)document.body.append(window.savedDock);
+  if(!r){const main=document.createElement('main');main.innerHTML='<h1>Google Photos</h1>';document.body.append(main);return;}
+  if(r.photo){
+   const index=Math.max(0,state.photos.indexOf(r.photo));
+   const viewer=document.createElement('main');viewer.id='viewer';
+   viewer.innerHTML=`<header><button id="back" aria-label="Back to album">←</button><span>Weekend in the mountains</span><span class="fixture-note">Simulated page · integration test</span></header><h1 style="position:absolute;left:-10000px">Photo review</h1><button class="arrow" id="prev" aria-label="Previous photo">‹</button><img alt="Mountain lake, view ${index+1}" src="${art(index)}"><button class="arrow" id="next" aria-label="Next photo">›</button><p id="caption">${index+1} / ${state.photos.length} · Weekend in the mountains</p>`;
+   document.body.append(viewer);
+   document.getElementById('back').onclick=()=>go(`${r.prefix}/album/${r.album}`);
+   const move=(delta)=>go(`${r.prefix}/album/${r.album}/photo/${state.photos[(index+delta+state.photos.length)%state.photos.length]}`);
+   document.getElementById('prev').onclick=()=>move(-1);document.getElementById('next').onclick=()=>move(1);
+   window.onkeydown=(e)=>{if(e.target.matches('input,textarea'))return;if(e.key==='ArrowRight')move(1);if(e.key==='ArrowLeft')move(-1);};
+  }else{
+   window.onkeydown=null;
+   const header=document.createElement('header');header.innerHTML='<div class="wordmark"><span>Google</span> Photos</div><span id="native-count"></span><button id="native-add" hidden>Add to album</button><span class="fixture-note">Simulated page · integration test</span><span class="avatar">A</span>';
+   const main=document.createElement('main');main.id='album-scroll';main.innerHTML='<h1>Weekend in the mountains</h1><p class="subtitle">A few days away · Your album</p><div id="tiles"></div>';
+   document.body.append(header,main);document.getElementById('native-add').onclick=()=>state.addCalls++;
+   const draw=()=>{
+    const allRows=Math.ceil(state.photos.length/4);const first=state.virtual?Math.max(0,Math.floor((main.scrollTop-150)/200)-1):0;const rows=state.virtual?7:allRows;const end=Math.min(allRows,first+rows);
+    const tiles=document.getElementById('tiles');tiles.replaceChildren();
+    const top=document.createElement('div');top.style.height=`${first*200}px`;tiles.append(top);
+    const grid=document.createElement('div');grid.className='grid';
+    state.photos.slice(first*4,end*4).forEach((id,offset)=>{
+     const i=first*4+offset;const card=document.createElement('article');card.dataset.id=id;
+     card.innerHTML=`<a ${state.noLinks?'':`href="${r.prefix}/album/${r.album}/photo/${id}"`} aria-label="Open photo ${i+1}"><img src="${art(i)}" alt="Mountain lake, view ${i+1}"></a><button type="button" role="checkbox" aria-checked="${state.selected.has(id)}" aria-label="Select photo"></button>`;
+     const anchor=card.querySelector('a');anchor.onclick=(e)=>{e.preventDefault();go(`${r.prefix}/album/${r.album}/photo/${id}`);};
+     card.querySelector('button').onclick=(e)=>{
+      if(state.navigateOnClick){go(`${r.prefix}/album/${r.album}/photo/${id}`);return;}
+      if(state.refuseClick)return;
+      if(state.selected.has(id))state.selected.delete(id);else state.selected.add(id);
+      e.currentTarget.setAttribute('aria-checked',String(state.selected.has(id)));updateCount();
+     };
+     grid.append(card);
+    });tiles.append(grid);
+    const bottom=document.createElement('div');bottom.style.height=`${Math.max(0,allRows-end)*200}px`;tiles.append(bottom);
+   };
+   draw();if(state.virtual)main.onscroll=draw;updateCount();
+  }
+ }
+ window.fixture={state,go(path){window.savedDock=document.getElementById('photo-shortlist-root');go(path);},configure(options){Object.assign(state,options);window.savedDock=document.getElementById('photo-shortlist-root');render();},selected(){return [...state.selected];},addCommentInput(){const input=document.createElement('input');input.id='comment';input.setAttribute('aria-label','Comment');document.getElementById('viewer').append(input);}};
+ // Native navigation also keeps extension UI alive, like the real single-page app.
+ const nativeGo=go;go=(path)=>{window.savedDock=document.getElementById('photo-shortlist-root');nativeGo(path);};
+ render();
+})();
+</script></body></html>
