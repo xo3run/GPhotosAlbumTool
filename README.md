@@ -62,6 +62,8 @@ Only the `storage` permission and a content script for `https://photos.google.co
 
 This enhances the Google Photos **website**. It does not bypass or gain broader permissions from the Google Photos API. It is an independent project and is not affiliated with Google.
 
+See the [privacy policy](docs/PRIVACY.md) and [Chrome Web Store privacy-form responses](docs/STORE_SUBMISSION.md).
+
 ## Develop and test
 
 Node.js 22+ is needed only for tests; the extension itself has no runtime packages.
